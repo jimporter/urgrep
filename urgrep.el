@@ -63,6 +63,19 @@
 ;; number explicitly in the output.
 (defvar urgrep-first-column 0)
 
+(defvar urgrep-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map compilation-minor-mode-map)
+    (define-key map "n" 'next-error-no-select)
+    (define-key map "p" 'previous-error-no-select)
+    (define-key map "{" 'compilation-previous-file)
+    (define-key map "}" 'compilation-next-file)
+    (define-key map "\t" 'compilation-next-error)
+    (define-key map [backtab] 'compilation-previous-error)
+    map)
+  "Keymap for urgrep buffers.
+`compilation-minor-mode-map' is a parent of this.")
+
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
                       face 'urgrep-match-count-face
