@@ -23,12 +23,14 @@
 
 ;;; Commentary:
 
-;; A universal frontend to various grep-like tools. Currently, only ag is
-;; supported.
+;; A universal frontend to various grep-like tools. Currently, only ag and grep
+;; are supported.
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'compile)
+(require 'grep)
 (require 'project)
 (require 'text-property-search)
 
@@ -63,6 +65,30 @@
 ;; number explicitly in the output.
 (defvar urgrep-first-column 0)
 
+(defun urgrep-rgrep--command (query)
+  (grep-compute-defaults)
+  (rgrep-default-command query "*" nil))
+
+(defvar urgrep-tools
+  `(("ag"
+     (executable-name "ag")
+     (always-arguments ("--color-match" "1;31")))
+    ("grep"
+     (executable-name "grep")
+     (command-function ,#'urgrep-rgrep--command)))
+  "An alist of known tools to try when running urgrep.")
+
+(defun urgrep-get-property (tool prop)
+  "Get a given property PROP from TOOL, or nil if PROP is undefined."
+  (when-let ((prop-entry (assoc prop (cdr tool))))
+    (cadr prop-entry)))
+
+(defun urgrep-get-tool ()
+  "Get the preferred urgrep tool from `urgrep-tools'."
+  (cl-dolist (i urgrep-tools)
+    (when (executable-find (urgrep-get-property i 'executable-name) t)
+      (cl-return i))))
+
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map compilation-minor-mode-map)
@@ -78,7 +104,7 @@
 
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
-                      face 'urgrep-match-count-face
+                      face urgrep-match-count-face
                       help-echo "Number of matches so far")
     "]"))
 
@@ -92,7 +118,11 @@
      ("^Urgrep \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
       (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
       (1 'compilation-error)
-      (2 'compilation-error nil t))))
+      (2 'compilation-error nil t))
+     ;; Hide excessive part of rgrep command
+     ("^find \\(\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
+      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
+           '(face nil abbreviated-command t))))))
 
 (defun urgrep--column-begin ()
   "Look forwards for the match highlight to compute the beginning column."
@@ -120,17 +150,24 @@
                         (prop-match-end match)))))
 
 (defconst urgrep-regexp-alist
-  ;; XXX: Support null separator after filename to make this less brittle, or
-  ;; just rely on ANSI escapes as with the match highlight.
+  ;; XXX: Try to rely on ANSI escapes as with the match highlight?
   `(;; Ungrouped matches
     (,(concat
+       "^\\(?:"
+       ;; Parse using a null terminator after the filename when possible.
+       "\\(?1:[^\0\n]+\\)\\(?3:\0\\)\\(?2:[0-9]+\\):"
+       "\\|"
+       ;; Fallback if we can't use null terminators after the filename.
+       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":034:" in file names.
        "\\(?1:"
        "\\(?:[a-zA-Z]:\\)?" ; Allow "C:..." for w32.
        "[^\n:]+?[^\n/:]"
        "\\)"
-       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":034:" in file names.
-       ":[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:")
-     1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end))
+       ":[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
+       "\\)")
+     1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)
+     nil nil
+     (3 '(face nil display ":")))
 
     ;; Grouped matches
     ("^\\([[:digit:]]+\\):"
@@ -139,13 +176,19 @@
   "Regexp used to match results.
 See `compilation-error-regexp-alist' for format details.")
 
-(defun urgrep-command (query)
-  (let ((arguments '()))
-    (setq arguments (cons (if urgrep-group-matches "--group" "--nogroup")
-                          arguments))
-    (mapconcat #'shell-quote-argument
-               (append '("ag") arguments `(,query))
-               " ")))
+(defun urgrep-command (query &optional tool)
+  (let* ((tool (or tool (urgrep-get-tool)))
+         (cmd-fun (urgrep-get-property tool 'command-function)))
+    (if cmd-fun
+        (funcall cmd-fun query)
+      (let ((arguments (or (urgrep-get-property tool 'always-arguments) '())))
+        (setq arguments (cons (if urgrep-group-matches "--group" "--nogroup")
+                              arguments))
+        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
+        ;; doesn't handle TRAMP right...
+        (mapconcat #'shell-quote-argument
+                   (append '("ag") arguments `(,query))
+                   " ")))))
 
 (defun urgrep-process-setup ()
   (setq-local urgrep-num-matches-found 0
@@ -184,8 +227,7 @@ This function is called from `compilation-filter-hook'."
       (when (< (point) end)
         (setq end (copy-marker end))
         ;; Highlight matches and delete ANSI escapes.
-        (while (re-search-forward
-                "\033\\[30;43m\\(.*?\\)\033\\[0m\033\\[K" end 1)
+        (while (re-search-forward "\033\\[0?1;31m\\(.*?\\)\033\\[0?m" end 1)
           (replace-match
            (propertize (match-string 1) 'face nil 'font-lock-face
                        'urgrep-match-face)
@@ -194,8 +236,7 @@ This function is called from `compilation-filter-hook'."
         ;; Highlight matching filenames and delete ANSI escapes.
         (when urgrep-group-matches
           (goto-char beg)
-          (while (re-search-forward
-                  "\033\\[1;32m\\(.*\\)\033\\[0m\033\\[K" end 1)
+          (while (re-search-forward "\033\\[1;32m\\(.*?\\)\033\\[0?m" end 1)
             (replace-match
              (propertize (match-string 1) 'face nil 'font-lock-face
                          'urgrep-hit-face 'urgrep-file-name t)

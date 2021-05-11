@@ -26,10 +26,21 @@
 
 (require 'ert)
 
-(ert-deftest urgrep-test-command ()
-  (should (equal "ag --group foo" (urgrep-command "foo")))
-  (let ((urgrep-group-matches nil))
-    (should (equal "ag --nogroup foo" (urgrep-command "foo")))))
+(ert-deftest urgrep-test-command-ag ()
+  (cl-letf (((symbol-function #'urgrep-get-tool)
+             (lambda () (assoc "ag" urgrep-tools))))
+    (should (equal (urgrep-command "foo")
+                   "ag --group --color-match 1\\;31 foo"))
+    (let ((urgrep-group-matches nil))
+      (should (equal (urgrep-command "foo")
+                     "ag --nogroup --color-match 1\\;31 foo")))))
+
+(ert-deftest urgrep-test-command-grep ()
+  (cl-letf (((symbol-function #'urgrep-get-tool)
+             (lambda () (assoc "grep" urgrep-tools))))
+    (should (string-match "^find \\." (urgrep-command "foo")))
+    (let ((urgrep-group-matches nil))
+      (should (string-match "^find \\." (urgrep-command "foo"))))))
 
 (defun urgrep-test--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))
