@@ -44,15 +44,15 @@
   :type 'boolean
   :group 'urgrep)
 
-(defface urgrep-hit-face '((t :inherit compilation-info))
+(defface urgrep-hit '((t :inherit compilation-info))
   "Face for matching files."
   :group 'urgrep)
 
-(defface urgrep-match-count-face '((t :inherit compilation-info))
+(defface urgrep-match-count '((t :inherit compilation-info))
   "Face for match counts."
   :group 'urgrep)
 
-(defface urgrep-match-face '((t :inherit match))
+(defface urgrep-match '((t :inherit match))
   "Face for matching text."
   :group 'urgrep)
 
@@ -104,7 +104,7 @@
 
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
-                      face urgrep-match-count-face
+                      face urgrep-match-count
                       help-echo "Number of matches so far")
     "]"))
 
@@ -113,7 +113,7 @@
       (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
      ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
       (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
-      (1 'urgrep-match-count-face nil t)
+      (1 'urgrep-match-count nil t)
       (2 'compilation-warning nil t))
      ("^Urgrep \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
       (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
@@ -128,7 +128,7 @@
   "Look forwards for the match highlight to compute the beginning column."
   (let* ((beg (match-end 0))
          (end (save-excursion (goto-char beg) (line-end-position)))
-         (mbeg (text-property-any beg end 'font-lock-face 'urgrep-match-face)))
+         (mbeg (text-property-any beg end 'font-lock-face 'urgrep-match)))
     (when mbeg
       (- mbeg beg))))
 
@@ -136,7 +136,7 @@
   "Look forwards for the match highlight to compute the ending column."
   (let* ((beg (match-end 0))
          (end (save-excursion (goto-char beg) (line-end-position)))
-         (mbeg (text-property-any beg end 'font-lock-face 'urgrep-match-face))
+         (mbeg (text-property-any beg end 'font-lock-face 'urgrep-match))
          (mend (and mbeg (next-single-property-change mbeg 'font-lock-face nil
                                                       end))))
     (when mend
@@ -229,8 +229,7 @@ This function is called from `compilation-filter-hook'."
         ;; Highlight matches and delete ANSI escapes.
         (while (re-search-forward "\033\\[0?1;31m\\(.*?\\)\033\\[0?m" end 1)
           (replace-match
-           (propertize (match-string 1) 'face nil 'font-lock-face
-                       'urgrep-match-face)
+           (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-match)
            t t)
           (cl-incf urgrep-num-matches-found))
         ;; Highlight matching filenames and delete ANSI escapes.
@@ -238,8 +237,8 @@ This function is called from `compilation-filter-hook'."
           (goto-char beg)
           (while (re-search-forward "\033\\[1;32m\\(.*?\\)\033\\[0?m" end 1)
             (replace-match
-             (propertize (match-string 1) 'face nil 'font-lock-face
-                         'urgrep-hit-face 'urgrep-file-name t)
+             (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
+                         'urgrep-file-name t)
              t t)))
 
         ;; Delete all remaining escape sequences.
@@ -250,7 +249,7 @@ This function is called from `compilation-filter-hook'."
 (define-compilation-mode urgrep-mode "Urgrep"
   "A compilation mode for various grep-like tools."
   (setq-local compilation-process-setup-function 'urgrep-process-setup
-              compilation-error-face 'urgrep-hit-face
+              compilation-error-face 'urgrep-hit
               compilation-error-regexp-alist urgrep-regexp-alist
               compilation-mode-line-errors urgrep-mode-line-matches
               compilation-disable-input t
