@@ -39,10 +39,10 @@
   (cl-letf (((symbol-function #'urgrep-get-tool)
              (lambda () (assoc "git-grep" urgrep-tools))))
     (should (equal (urgrep-command "foo")
-                   "git -c color.grep.filename\\=magenta grep -n --color --heading --break foo"))
+                   "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color --heading --break foo"))
     (let ((urgrep-group-matches nil))
       (should (equal (urgrep-command "foo")
-                     "git -c color.grep.filename\\=magenta grep -n --color foo")))))
+                     "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color foo")))))
 
 (ert-deftest urgrep-test-command-grep ()
   (cl-letf (((symbol-function #'urgrep-get-tool)

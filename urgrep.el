@@ -75,12 +75,11 @@
      (always-arguments ("--color-path" "35" "--color-match" "1;31"))
      (group-arguments ((t   ("--group"))
                        (nil ("--nogroup")))))
-    ;; XXX: Handle submodules for git-grep.
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
      (always-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
-                        "--color"))
+                        "--recurse-submodules" "--color"))
      (group-arguments ((t   ("--heading" "--break")))))
     ("grep"
      (executable-name "grep")
