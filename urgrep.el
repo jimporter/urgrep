@@ -72,7 +72,16 @@
 (defvar urgrep-tools
   `(("ag"
      (executable-name "ag")
-     (always-arguments ("--color-match" "1;31")))
+     (always-arguments ("--color-path" "35" "--color-match" "1;31"))
+     (group-arguments ((t   ("--group"))
+                       (nil ("--nogroup")))))
+    ;; XXX: Handle submodules for git-grep.
+    ("git-grep"
+     (executable-name "git")
+     (vc-backend "Git")
+     (always-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
+                        "--color"))
+     (group-arguments ((t   ("--heading" "--break")))))
     ("grep"
      (executable-name "grep")
      (command-function ,#'urgrep-rgrep--command)))
@@ -83,11 +92,26 @@
   (when-let ((prop-entry (assoc prop (cdr tool))))
     (cadr prop-entry)))
 
+(defun urgrep-get-property-assoc (tool prop key)
+  "Get a given property PROP from TOOL, selecting a KEY from the alist value."
+  (when-let ((prop-value (urgrep-get-property tool prop))
+             (assoc-value (assoc key prop-value)))
+    (cadr assoc-value)))
+
 (defun urgrep-get-tool ()
   "Get the preferred urgrep tool from `urgrep-tools'."
-  (cl-dolist (i urgrep-tools)
-    (when (executable-find (urgrep-get-property i 'executable-name) t)
-      (cl-return i))))
+  (let ((vc-backend-name))
+    (cl-dolist (tool urgrep-tools)
+      (let ((tool-executable (urgrep-get-property tool 'executable-name))
+            (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
+        ;; Cache the VC backend name if we need it.
+        (when (and tool-vc-backend (not vc-backend-name))
+          (setq vc-backend-name
+                (vc-responsible-backend (project-root (project-current)))))
+        (when (and (executable-find tool-executable t)
+                   (or (not tool-vc-backend)
+                       (string= vc-backend-name tool-vc-backend)))
+          (cl-return tool))))))
 
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
@@ -181,13 +205,18 @@ See `compilation-error-regexp-alist' for format details.")
          (cmd-fun (urgrep-get-property tool 'command-function)))
     (if cmd-fun
         (funcall cmd-fun query)
-      (let ((arguments (or (urgrep-get-property tool 'always-arguments) '())))
-        (setq arguments (cons (if urgrep-group-matches "--group" "--nogroup")
-                              arguments))
+      (let ((executable (urgrep-get-property tool 'executable-name))
+            (always-args (or (urgrep-get-property tool 'always-arguments) '()))
+            (arguments '()))
+        ;; Fill in group arguments. Eventually there will be more arguments like
+        ;; this. XXX: Maybe figure out a more flexible way to do this?
+        (let ((group (urgrep-get-property-assoc tool 'group-arguments
+                                                urgrep-group-matches)))
+          (when group (setq arguments (append group arguments))))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
         (mapconcat #'shell-quote-argument
-                   (append '("ag") arguments `(,query))
+                   (append `(,executable) always-args arguments `(,query))
                    " ")))))
 
 (defun urgrep-process-setup ()
@@ -235,7 +264,7 @@ This function is called from `compilation-filter-hook'."
         ;; Highlight matching filenames and delete ANSI escapes.
         (when urgrep-group-matches
           (goto-char beg)
-          (while (re-search-forward "\033\\[1;32m\\(.*?\\)\033\\[0?m" end 1)
+          (while (re-search-forward "\033\\[35m\\(.*?\\)\033\\[0?m" end 1)
             (replace-match
              (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
                          'urgrep-file-name t)
