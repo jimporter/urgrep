@@ -44,6 +44,11 @@
   :type 'boolean
   :group 'urgrep)
 
+(defcustom urgrep-search-regexp nil
+  "Default to searching via regexp."
+  :type 'boolean
+  :group 'urgrep)
+
 (defface urgrep-hit '((t :inherit compilation-info))
   "Face for matching files."
   :group 'urgrep)
@@ -56,16 +61,11 @@
   "Face for matching text."
   :group 'urgrep)
 
-(defvar urgrep-search-history nil "History list for urgrep.")
-(defvar urgrep-num-matches-found 0
-  "Running total of matches found. This will be set buffer-locally.")
-
-;; Set the first column to 0 because that's how we currently count.
-;; XXX: It might be worth changing this to 1 if we allow reading the column
-;; number explicitly in the output.
-(defvar urgrep-first-column 0)
+
+;; Urgrep tools
 
 (defun urgrep-rgrep--command (query)
+  ;; XXX: Support literal/regexp setting.
   (grep-compute-defaults)
   (rgrep-default-command query "*" nil))
 
@@ -74,13 +74,15 @@
      (executable-name "ag")
      (always-arguments ("--color-path" "35" "--color-match" "1;31"))
      (group-arguments ((t   ("--group"))
-                       (nil ("--nogroup")))))
+                       (nil ("--nogroup"))))
+     (regexp-arguments ((nil ("-Q")))))
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
      (always-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
                         "--recurse-submodules" "--color"))
-     (group-arguments ((t   ("--heading" "--break")))))
+     (group-arguments ((t ("--heading" "--break"))))
+     (regexp-arguments ((nil ("-F")))))
     ("grep"
      (executable-name "grep")
      (command-function ,#'urgrep-rgrep--command)))
@@ -111,6 +113,18 @@
                    (or (not tool-vc-backend)
                        (string= vc-backend-name tool-vc-backend)))
           (cl-return tool))))))
+
+
+;; urgrep-mode
+
+(defvar urgrep-search-history nil "History list for urgrep.")
+(defvar urgrep-num-matches-found 0
+  "Running total of matches found. This will be set buffer-locally.")
+
+;; Set the first column to 0 because that's how we currently count.
+;; XXX: It might be worth changing this to 1 if we allow reading the column
+;; number explicitly in the output.
+(defvar urgrep-first-column 0)
 
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
@@ -212,6 +226,10 @@ See `compilation-error-regexp-alist' for format details.")
         (let ((group (urgrep-get-property-assoc tool 'group-arguments
                                                 urgrep-group-matches)))
           (when group (setq arguments (append group arguments))))
+        ;; Fill in regexp/literal arguments.
+        (let ((regexp (urgrep-get-property-assoc tool 'regexp-arguments
+                                                urgrep-search-regexp)))
+          (when regexp (setq arguments (append regexp arguments))))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
         (mapconcat #'shell-quote-argument
@@ -284,6 +302,48 @@ This function is called from `compilation-filter-hook'."
               compilation-error-screen-columns nil)
   (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
 
+
+;; Minibuffer configuration
+
+(defun urgrep--search-prompt ()
+  "Return the prompt to use when asking for the search query.
+This depends on the current values of various urgrep options."
+  (concat "Search "
+          (if urgrep-search-regexp "regexp" "string")
+          ": "))
+
+(defun urgrep--update-search-prompt ()
+  "Update the search prompt in the minibuffer."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (let* ((inhibit-read-only t)
+           (match (text-property-search-forward 'field t t))
+           (begin (prop-match-beginning match))
+           (end (prop-match-end match))
+           (props (text-properties-at begin)))
+      (delete-region begin end)
+      (insert (apply #'propertize (urgrep--search-prompt) props))))
+  ;; Fix up the point if it ends up in the prompt; this can happen if the point
+  ;; was at the beginning of the editable text.
+  (if (< (point) (minibuffer-prompt-end)) (goto-char (minibuffer-prompt-end))))
+
+(defun urgrep-toggle-regexp ()
+  "Toggle whether or not to use regexps for the current search."
+  ;; FIXME: Check that we're in the search minibuffer.
+  (interactive)
+  (setq urgrep-search-regexp (not urgrep-search-regexp))
+  (urgrep--update-search-prompt))
+
+(defvar urgrep-minibuffer-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map minibuffer-local-map)
+    (define-key map "\C-c\C-r" #'urgrep-toggle-regexp)
+    map))
+
+
+;; User-facing functions (and supporting helpers)
+
 (defun urgrep--read-directory (arg)
   (cond
    ((not arg) (let ((proj (project-current)))
@@ -292,10 +352,17 @@ This function is called from `compilation-filter-hook'."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(defun urgrep (query &optional directory)
-  "Search in DIRECTORY for a given QUERY."
+(cl-defun urgrep (query &optional directory &aux
+                        (urgrep-search-regexp urgrep-search-regexp))
+  "Search in DIRECTORY for a given QUERY.
+\\<urgrep-minibuffer-map>
+The following keys are bound in `urgrep-minibuffer-map', active when entering
+the search query:
+
+Type \\[urgrep-toggle-regexp] to toggle regular-expression mode."
   (interactive
-   (list (read-from-minibuffer "Search for: " "" nil nil 'urgrep-search-history)
+   (list (read-from-minibuffer (urgrep--search-prompt) nil
+                               urgrep-minibuffer-map nil 'urgrep-search-history)
          (urgrep--read-directory current-prefix-arg)))
   (let ((default-directory (or directory default-directory)))
     (compilation-start (urgrep-command query) 'urgrep-mode)))
