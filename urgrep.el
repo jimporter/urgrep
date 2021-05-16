@@ -23,8 +23,8 @@
 
 ;;; Commentary:
 
-;; A universal frontend to various grep-like tools. Currently, only ag and grep
-;; are supported.
+;; A universal frontend to various grep-like tools. Currently, ag, git-grep, and
+;; grep are supported.
 
 ;;; Code:
 
@@ -128,16 +128,43 @@
 
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map compilation-minor-mode-map)
+    ;; Don't inherit from `compilation-minor-mode-map',
+    ;; because that introduces a menu bar item we don't want.
+    (set-keymap-parent map special-mode-map)
+    (define-key map [mouse-2] 'compile-goto-error)
+    (define-key map [follow-link] 'mouse-face)
+    (define-key map "\C-c\C-c" 'compile-goto-error)
+    (define-key map "\C-m" 'compile-goto-error)
+    (define-key map "\C-o" 'compilation-display-error)
+    (define-key map "\C-c\C-k" 'kill-compilation)
+    (define-key map "\M-n" 'compilation-next-error)
+    (define-key map "\M-p" 'compilation-previous-error)
+    (define-key map "\M-{" 'compilation-previous-file)
+    (define-key map "\M-}" 'compilation-next-file)
     (define-key map "n" 'next-error-no-select)
     (define-key map "p" 'previous-error-no-select)
     (define-key map "{" 'compilation-previous-file)
     (define-key map "}" 'compilation-next-file)
     (define-key map "\t" 'compilation-next-error)
     (define-key map [backtab] 'compilation-previous-error)
+    (define-key map "g" 'recompile)
     map)
-  "Keymap for urgrep buffers.
-`compilation-minor-mode-map' is a parent of this.")
+  "Keymap for urgrep buffers.")
+
+(easy-menu-define urgrep-menu-map urgrep-mode-map
+  "Menu for urgrep buffers."
+  '("Urgrep"
+    ["Next Match" next-error
+     :help "Visit the next match and corresponding location"]
+    ["Previous Match" previous-error
+     :help "Visit the previous match and corresponding location"]
+    ["First Match" first-error
+     :help "Restart at the first match, visit corresponding location"]
+    "---"
+    ["Repeat Search" recompile
+     :help "Run search again"]
+    ["Stop search" kill-compilation
+     :help "Kill the currently running search process"]))
 
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
