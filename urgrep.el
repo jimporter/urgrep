@@ -381,10 +381,15 @@ This depends on the current values of various urgrep options."
 ;;;###autoload
 (cl-defun urgrep (query &optional directory &aux
                         (urgrep-search-regexp urgrep-search-regexp))
-  "Search in DIRECTORY for a given QUERY.
+  "Recursively search in DIRECTORY for a given QUERY.
+
+When called interactively, search in the project's root directory, or
+the current directory if there is no current project. With \\[universal-argument] prefix,
+search in the current directory. With two \\[universal-argument] prefixes, prompt for a
+directory to search in.
 \\<urgrep-minibuffer-map>
-The following keys are bound in `urgrep-minibuffer-map', active when entering
-the search query:
+The following keys are bound in `urgrep-minibuffer-map', active
+when entering the search query:
 
 Type \\[urgrep-toggle-regexp] to toggle regular-expression mode."
   (interactive
