@@ -106,9 +106,10 @@
       (let ((tool-executable (urgrep-get-property tool 'executable-name))
             (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
         ;; Cache the VC backend name if we need it.
-        (when (and tool-vc-backend (not vc-backend-name))
+        (when-let (((and tool-vc-backend (not vc-backend-name)))
+                   (curr-proj (project-current)))
           (setq vc-backend-name
-                (vc-responsible-backend (project-root (project-current)))))
+                (vc-responsible-backend (project-root curr-proj))))
         (when (and (executable-find tool-executable t)
                    (or (not tool-vc-backend)
                        (string= vc-backend-name tool-vc-backend)))
