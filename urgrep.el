@@ -81,7 +81,8 @@
 (defvar urgrep-tools
   `(("ag"
      (executable-name "ag")
-     (always-arguments ("--color-path" "35" "--color-match" "1;31"))
+     (pre-arguments ("--color-path" "35" "--color-match" "1;31"))
+     (post-arguments ("--"))
      (group-arguments ((t   ("--group"))
                        (nil ("--nogroup"))))
      (regexp-arguments ((nil ("-Q"))))
@@ -89,8 +90,9 @@
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
-     (always-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
-                        "--recurse-submodules" "--color"))
+     (pre-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
+                     "--recurse-submodules" "--color"))
+     (post-arguments ("-e"))
      (group-arguments ((t ("--heading" "--break"))))
      (regexp-arguments ((nil ("-F"))))
      (context-arguments "-C%d"))
@@ -133,8 +135,8 @@
     (if cmd-fun
         (apply cmd-fun query rest)
       (let ((executable (urgrep-get-property tool 'executable-name))
-            (always-args (or (urgrep-get-property tool 'always-arguments) '()))
-            (arguments '()))
+            (pre-args (or (urgrep-get-property tool 'pre-arguments) '()))
+            (arguments (or (urgrep-get-property tool 'post-arguments) '())))
         ;; Fill in group arguments. XXX: Maybe figure out a more flexible way to
         ;; do this?
         (when-let ((x (urgrep-get-property-assoc tool 'group-arguments group)))
@@ -151,7 +153,7 @@
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
         (mapconcat #'shell-quote-argument
-                   (append `(,executable) always-args arguments `(,query))
+                   (append `(,executable) pre-args arguments `(,query))
                    " ")))))
 
 
