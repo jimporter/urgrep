@@ -64,7 +64,7 @@
 
 ;; Urgrep tools
 
-(defun urgrep-rgrep--command (query)
+(cl-defun urgrep-rgrep--command (query &key &allow-other-keys)
   ;; XXX: Support literal/regexp setting.
   (grep-compute-defaults)
   (rgrep-default-command query "*" nil))
@@ -113,6 +113,28 @@
                    (or (not tool-vc-backend)
                        (string= vc-backend-name tool-vc-backend)))
           (cl-return tool))))))
+
+(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp)
+  (let* ((tool (or tool (urgrep-get-tool)))
+         (cmd-fun (urgrep-get-property tool 'command-function)))
+    (if cmd-fun
+        (apply cmd-fun query rest)
+      (let ((executable (urgrep-get-property tool 'executable-name))
+            (always-args (or (urgrep-get-property tool 'always-arguments) '()))
+            (arguments '()))
+        ;; Fill in group arguments. XXX: Maybe figure out a more flexible way to
+        ;; do this?
+        (when-let ((x (urgrep-get-property-assoc tool 'group-arguments group)))
+          (setq arguments (append x arguments)))
+        ;; Fill in regexp/literal arguments.
+        (when-let ((x (urgrep-get-property-assoc tool 'regexp-arguments
+                                                 regexp)))
+          (setq arguments (append x arguments)))
+        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
+        ;; doesn't handle TRAMP right...
+        (mapconcat #'shell-quote-argument
+                   (append `(,executable) always-args arguments `(,query))
+                   " ")))))
 
 
 ;; urgrep-mode
@@ -240,29 +262,6 @@
   "Regexp used to match results.
 See `compilation-error-regexp-alist' for format details.")
 
-(defun urgrep-command (query &optional tool)
-  (let* ((tool (or tool (urgrep-get-tool)))
-         (cmd-fun (urgrep-get-property tool 'command-function)))
-    (if cmd-fun
-        (funcall cmd-fun query)
-      (let ((executable (urgrep-get-property tool 'executable-name))
-            (always-args (or (urgrep-get-property tool 'always-arguments) '()))
-            (arguments '()))
-        ;; Fill in group arguments. Eventually there will be more arguments like
-        ;; this. XXX: Maybe figure out a more flexible way to do this?
-        (let ((group (urgrep-get-property-assoc tool 'group-arguments
-                                                urgrep-group-matches)))
-          (when group (setq arguments (append group arguments))))
-        ;; Fill in regexp/literal arguments.
-        (let ((regexp (urgrep-get-property-assoc tool 'regexp-arguments
-                                                urgrep-search-regexp)))
-          (when regexp (setq arguments (append regexp arguments))))
-        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
-        ;; doesn't handle TRAMP right...
-        (mapconcat #'shell-quote-argument
-                   (append `(,executable) always-args arguments `(,query))
-                   " ")))))
-
 (defun urgrep-process-setup ()
   (setq-local urgrep-num-matches-found 0
               compilation-exit-message-function 'urgrep-exit-message))
@@ -357,16 +356,25 @@ This depends on the current values of various urgrep options."
 
 (defun urgrep-toggle-regexp ()
   "Toggle whether or not to use regexps for the current search."
-  ;; FIXME: Check that we're in the search minibuffer.
   (interactive)
   (setq urgrep-search-regexp (not urgrep-search-regexp))
-  (urgrep--update-search-prompt))
+  (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
 (defvar urgrep-minibuffer-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
     (define-key map "\C-c\C-r" #'urgrep-toggle-regexp)
     map))
+
+(cl-defun urgrep--read-query (&key (regexp urgrep-search-regexp))
+  "Prompt the user for a search query.
+Return a list that can be passed to `urgrep-command' to turn into a shell
+command."
+  (let* ((urgrep-search-regexp regexp)
+         (query (read-from-minibuffer (urgrep--search-prompt) nil
+                                      urgrep-minibuffer-map nil
+                                      'urgrep-search-history)))
+    (list query :group urgrep-group-matches :regexp urgrep-search-regexp)))
 
 
 ;; User-facing functions (and supporting helpers)
@@ -379,8 +387,7 @@ This depends on the current values of various urgrep options."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(cl-defun urgrep (query &optional directory &aux
-                        (urgrep-search-regexp urgrep-search-regexp))
+(cl-defun urgrep (query directory &rest rest &key command &allow-other-keys)
   "Recursively search in DIRECTORY for a given QUERY.
 
 When called interactively, search in the project's root directory, or
@@ -393,11 +400,18 @@ when entering the search query:
 
 Type \\[urgrep-toggle-regexp] to toggle regular-expression mode."
   (interactive
-   (list (read-from-minibuffer (urgrep--search-prompt) nil
-                               urgrep-minibuffer-map nil 'urgrep-search-history)
-         (urgrep--read-directory current-prefix-arg)))
+   (list
+    ;; Wrap the command in a list so that we can tell it's a real command, not
+    ;; just a query. This gets around some limitations with mixing optional and
+    ;; keyword arguments.
+    (list (apply #'urgrep-command (urgrep--read-query)))
+    (urgrep--read-directory current-prefix-arg)))
+  (setq query (cond
+               (command query)
+               ((listp query) (car query))
+               (t (apply #'urgrep-command query rest))))
   (let ((default-directory (or directory default-directory)))
-    (compilation-start (urgrep-command query) 'urgrep-mode)))
+    (compilation-start query 'urgrep-mode)))
 
 (provide 'urgrep)
 
