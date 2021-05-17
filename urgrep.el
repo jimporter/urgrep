@@ -128,6 +128,16 @@
                        (string= vc-backend-name tool-vc-backend)))
           (cl-return tool))))))
 
+(defun urgrep--maybe-shell-quote-argument (argument)
+  "Quote ARGUMENT if needed for passing to an inferior shell.
+This works as `shell-quote-argument', but avoids quoting unnecessarily
+for MS shells."
+  (if (and (or (eq system-type 'ms-dos)
+               (and (eq system-type 'windows-nt) (w32-shell-dos-semantics)))
+           (not (string-match "[^-0-9a-zA-Z_./=]" argument)))
+      argument
+    (shell-quote-argument argument)))
+
 (cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
                                 (context 0))
   (let* ((tool (or tool (urgrep-get-tool)))
@@ -152,7 +162,7 @@
           (setq arguments (append (list context-arg) arguments)))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
-        (mapconcat #'shell-quote-argument
+        (mapconcat #'urgrep--maybe-shell-quote-argument
                    (append `(,executable) pre-args arguments `(,query))
                    " ")))))
 
