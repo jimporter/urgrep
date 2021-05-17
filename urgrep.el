@@ -49,6 +49,11 @@
   :type 'boolean
   :group 'urgrep)
 
+(defcustom urgrep-context-lines 0
+  "Number of lines of context to show."
+  :type 'integer
+  :group 'urgrep)
+
 (defface urgrep-hit '((t :inherit compilation-info))
   "Face for matching files."
   :group 'urgrep)
@@ -61,11 +66,15 @@
   "Face for matching text."
   :group 'urgrep)
 
+(defface urgrep-context '((t :inherit shadow))
+  "Face for context lines."
+  :group 'urgrep)
+
 
 ;; Urgrep tools
 
 (cl-defun urgrep-rgrep--command (query &key &allow-other-keys)
-  ;; XXX: Support literal/regexp setting.
+  ;; XXX: Support literal/regexp and context settings.
   (grep-compute-defaults)
   (rgrep-default-command query "*" nil))
 
@@ -75,14 +84,16 @@
      (always-arguments ("--color-path" "35" "--color-match" "1;31"))
      (group-arguments ((t   ("--group"))
                        (nil ("--nogroup"))))
-     (regexp-arguments ((nil ("-Q")))))
+     (regexp-arguments ((nil ("-Q"))))
+     (context-arguments "-C%d"))
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
      (always-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
                         "--recurse-submodules" "--color"))
      (group-arguments ((t ("--heading" "--break"))))
-     (regexp-arguments ((nil ("-F")))))
+     (regexp-arguments ((nil ("-F"))))
+     (context-arguments "-C%d"))
     ("grep"
      (executable-name "grep")
      (command-function ,#'urgrep-rgrep--command)))
@@ -115,7 +126,8 @@
                        (string= vc-backend-name tool-vc-backend)))
           (cl-return tool))))))
 
-(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp)
+(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
+                                (context 0))
   (let* ((tool (or tool (urgrep-get-tool)))
          (cmd-fun (urgrep-get-property tool 'command-function)))
     (if cmd-fun
@@ -131,6 +143,11 @@
         (when-let ((x (urgrep-get-property-assoc tool 'regexp-arguments
                                                  regexp)))
           (setq arguments (append x arguments)))
+        ;; Fill in context arguments.
+        (when-let (((> context 0))
+                   (prop (urgrep-get-property tool 'context-arguments))
+                   (context-arg (format prop context)))
+          (setq arguments (append (list context-arg) arguments)))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
         (mapconcat #'shell-quote-argument
@@ -196,20 +213,26 @@
     "]"))
 
 (defvar urgrep-mode-font-lock-keywords
-   '(("^Urgrep started.*"
-      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
-     ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
-      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
-      (1 'urgrep-match-count nil t)
-      (2 'compilation-warning nil t))
-     ("^Urgrep \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
-      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
-      (1 'compilation-error)
-      (2 'compilation-error nil t))
-     ;; Hide excessive part of rgrep command
-     ("^find \\(\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
-      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
-           '(face nil abbreviated-command t))))))
+  '(("^Urgrep started.*"
+     (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
+    ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
+     (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
+     (1 'urgrep-match-count nil t)
+     (2 'compilation-warning nil t))
+    ("^Urgrep \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
+     (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
+     (1 'compilation-error)
+     (2 'compilation-error nil t))
+    ;; Highlight context lines of various flavors.
+    ("^\\(?:.+?\\([:-=\0]\\)\\)?[1-9][0-9]*\\([-=]\\).*\n"
+     (0 'urgrep-context)
+     (1 (if (eq (char-after (match-beginning 1)) ?\0)
+            `(face nil display ,(match-string 2)))
+        nil t))
+    ;; Hide excessive part of rgrep command.
+    ("^find \\(\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
+     (1 (if grep-find-abbreviate grep-find-abbreviate-properties
+          '(face nil abbreviated-command t))))))
 
 (defun urgrep--column-begin ()
   "Look forwards for the match highlight to compute the beginning column."
@@ -246,18 +269,14 @@
        "\\|"
        ;; Fallback if we can't use null terminators after the filename.
        ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":034:" in file names.
-       "\\(?1:"
-       "\\(?:[a-zA-Z]:\\)?" ; Allow "C:..." for w32.
-       "[^\n:]+?[^\n/:]"
-       "\\)"
-       ":[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
+       "\\(?1:[^\n:]+?[^\n/:]\\):[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
        "\\)")
      1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)
      nil nil
      (3 '(face nil display ":")))
 
     ;; Grouped matches
-    ("^\\([[:digit:]]+\\):"
+    ("^\\([1-9][0-9]*\\):"
      ,#'urgrep--grouped-filename 1
      (,#'urgrep--column-begin . ,#'urgrep--column-end)))
   "Regexp used to match results.
@@ -337,6 +356,8 @@ This function is called from `compilation-filter-hook'."
 This depends on the current values of various urgrep options."
   (concat "Search "
           (if urgrep-search-regexp "regexp" "string")
+          (when (> urgrep-context-lines 0)
+            (format " -C%d" urgrep-context-lines))
           ": "))
 
 (defun urgrep--update-search-prompt ()
@@ -356,26 +377,47 @@ This depends on the current values of various urgrep options."
   (if (< (point) (minibuffer-prompt-end)) (goto-char (minibuffer-prompt-end))))
 
 (defun urgrep-toggle-regexp ()
-  "Toggle whether or not to use regexps for the current search."
+  "Toggle whether or not to use regexps for the search query.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
   (interactive)
   (setq urgrep-search-regexp (not urgrep-search-regexp))
+  (when (window-minibuffer-p) (urgrep--update-search-prompt)))
+
+(defun urgrep-set-context (lines)
+  "Set the number of LINES of context to show in the search results.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
+  (interactive
+   (list
+    (if current-prefix-arg
+        (prefix-numeric-value current-prefix-arg)
+      (let ((enable-recursive-minibuffers t))
+        (read-number "Context: ")))))
+  (setq urgrep-context-lines lines)
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
 (defvar urgrep-minibuffer-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
     (define-key map "\C-c\C-r" #'urgrep-toggle-regexp)
+    (define-key map "\C-c\C-c" #'urgrep-set-context)
     map))
 
-(cl-defun urgrep--read-query (&key (regexp urgrep-search-regexp))
+(cl-defun urgrep--read-query (&key (regexp urgrep-search-regexp)
+                                   (context urgrep-context-lines))
   "Prompt the user for a search query.
 Return a list that can be passed to `urgrep-command' to turn into a shell
 command."
   (let* ((urgrep-search-regexp regexp)
+         (urgrep-context-lines context)
          (query (read-from-minibuffer (urgrep--search-prompt) nil
                                       urgrep-minibuffer-map nil
                                       'urgrep-search-history)))
-    (list query :group urgrep-group-matches :regexp urgrep-search-regexp)))
+    (list query :group urgrep-group-matches :regexp urgrep-search-regexp
+          :context urgrep-context-lines)))
 
 
 ;; User-facing functions (and supporting helpers)
@@ -392,14 +434,17 @@ command."
   "Recursively search in DIRECTORY for a given QUERY.
 
 When called interactively, search in the project's root directory, or
-the current directory if there is no current project. With \\[universal-argument] prefix,
-search in the current directory. With two \\[universal-argument] prefixes, prompt for a
+the current directory if there is no current project.  With \\[universal-argument] prefix,
+search in the current directory.  With two \\[universal-argument] prefixes, prompt for a
 directory to search in.
 \\<urgrep-minibuffer-map>
-The following keys are bound in `urgrep-minibuffer-map', active
-when entering the search query:
+The following keys are bound in `urgrep-minibuffer-map', active when
+entering the search query:
 
-Type \\[urgrep-toggle-regexp] to toggle regular-expression mode."
+Type \\[urgrep-toggle-regexp] to toggle regular-expression mode.
+Type \\[urgrep-set-context] to set the number of context lines.
+  With a numeric prefix argument, set the context to that many
+  lines.  Without a prefix, prompt for the number."
   (interactive
    (list
     ;; Wrap the command in a list so that we can tell it's a real command, not

@@ -27,24 +27,39 @@
 (require 'ert)
 
 (ert-deftest urgrep-test-command-ag ()
-  (let ((tool (assoc "ag" urgrep-tools)))
+  (let ((tool (assoc "ag" urgrep-tools))
+        (common-args "ag --color-path 35 --color-match 1\\;31 "))
     (should (equal (urgrep-command "foo" :tool tool)
-                   "ag --color-path 35 --color-match 1\\;31 -Q --group foo"))
+                   (concat common-args "-Q --group foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   "ag --color-path 35 --color-match 1\\;31 -Q --nogroup foo"))))
+                   (concat common-args "-Q --nogroup foo")))
+    (should (equal (urgrep-command "foo" :tool tool :regexp t)
+                   (concat common-args "--group foo")))
+    (should (equal (urgrep-command "foo" :tool tool :context 3)
+                   (concat common-args "-C3 -Q --group foo")))))
 
 (ert-deftest urgrep-test-command-git-grep ()
-  (let ((tool (assoc "git-grep" urgrep-tools)))
+  (let ((tool (assoc "git-grep" urgrep-tools))
+        (common-args "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color "))
     (should (equal (urgrep-command "foo" :tool tool)
-                   "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color -F --heading --break foo"))
+                   (concat common-args "-F --heading --break foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color -F foo"))))
+                   (concat common-args "-F foo")))
+    (should (equal (urgrep-command "foo" :tool tool :regexp t)
+                   (concat common-args "--heading --break foo")))
+    (should (equal (urgrep-command "foo" :tool tool :context 3)
+                   (concat common-args "-C3 -F --heading --break foo")))))
 
 (ert-deftest urgrep-test-command-grep ()
   (let ((tool (assoc "grep" urgrep-tools)))
-    (should (string-match "^find \\." (urgrep-command "foo" :tool tool)))
-    (should (string-match "^find \\." (urgrep-command "foo" :tool tool
-                                                      :group nil)))))
+    (should (string-match "^find \\."
+                          (urgrep-command "foo" :tool tool)))
+    (should (string-match "^find \\."
+                          (urgrep-command "foo" :tool tool :group nil)))
+    (should (string-match "^find \\."
+                          (urgrep-command "foo" :tool tool :regexp t)))
+    (should (string-match "^find \\."
+                          (urgrep-command "foo" :tool tool :context 3)))))
 
 (defun urgrep-test--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))
