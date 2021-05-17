@@ -26,7 +26,7 @@
 
 (require 'ert)
 
-(ert-deftest urgrep-test-command-ag ()
+(ert-deftest urgrep-tests-command-ag ()
   (let ((tool (assoc "ag" urgrep-tools))
         (common-args "ag --color-path 35 --color-match 1\\;31 "))
     (should (equal (urgrep-command "foo" :tool tool)
@@ -38,7 +38,7 @@
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -Q --group foo")))))
 
-(ert-deftest urgrep-test-command-git-grep ()
+(ert-deftest urgrep-tests-command-git-grep ()
   (let ((tool (assoc "git-grep" urgrep-tools))
         (common-args "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color "))
     (should (equal (urgrep-command "foo" :tool tool)
@@ -50,7 +50,7 @@
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -F --heading --break foo")))))
 
-(ert-deftest urgrep-test-command-grep ()
+(ert-deftest urgrep-tests-command-grep ()
   (let ((tool (assoc "grep" urgrep-tools)))
     (should (string-match "^find \\."
                           (urgrep-command "foo" :tool tool)))
@@ -61,7 +61,7 @@
     (should (string-match "^find \\."
                           (urgrep-command "foo" :tool tool :context 3)))))
 
-(defun urgrep-test--check-match-at-point ()
+(defun urgrep-tests--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))
          (loc
           (compilation--message->loc
@@ -71,24 +71,24 @@
          (match-start (text-property-any text-start text-end 'font-lock-face
                                          'urgrep-match)))
     (should (equal (caar (compilation--loc->file-struct loc))
-                   "urgrep-test.el"))
+                   "urgrep-tests.el"))
     (should (equal (compilation--loc->line loc) line))
     (should (equal (compilation--loc->col loc)
                    (- match-start text-start)))))
 
-(ert-deftest urgrep-test-urgrep-group ()
+(ert-deftest urgrep-tests-urgrep-group ()
   (switch-to-buffer (urgrep "urgrep" nil))
   (sit-for 1)
   (goto-char (point-min))
-  (re-search-forward "urgrep-test.el")
+  (re-search-forward "urgrep-tests.el")
   (beginning-of-line 2)
-  (urgrep-test--check-match-at-point))
+  (urgrep-tests--check-match-at-point))
 
-(ert-deftest urgrep-test-urgrep-nogroup ()
+(ert-deftest urgrep-tests-urgrep-nogroup ()
   (switch-to-buffer (urgrep "urgrep" nil :group nil))
   (sit-for 1)
   (goto-char (point-min))
-  (re-search-forward "urgrep-test.el:")
-  (urgrep-test--check-match-at-point))
+  (re-search-forward "urgrep-tests.el:")
+  (urgrep-tests--check-match-at-point))
 
-;;; urgrep-test.el ends here
+;;; urgrep-tests.el ends here
