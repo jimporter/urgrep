@@ -40,7 +40,7 @@
 
 (ert-deftest urgrep-tests-command-git-grep ()
   (let ((tool (assoc "git-grep" urgrep-tools))
-        (common-args "git -c color.grep.filename\\=magenta grep -n --recurse-submodules --color "))
+        (common-args "git --no-pager -c color.grep.filename\\=magenta -c color.grep.match\\=bold\\ red grep --color -n --recurse-submodules "))
     (should (equal (urgrep-command "foo" :tool tool)
                    (concat common-args "-F --heading --break -e foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)

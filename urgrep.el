@@ -90,8 +90,9 @@
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
-     (pre-arguments ("-c" "color.grep.filename=magenta" "grep" "-n"
-                     "--recurse-submodules" "--color"))
+     (pre-arguments ("--no-pager" "-c" "color.grep.filename=magenta"
+                     "-c" "color.grep.match=bold red" "grep" "--color" "-n"
+                     "--recurse-submodules"))
      (post-arguments ("-e"))
      (group-arguments ((t ("--heading" "--break"))))
      (regexp-arguments ((nil ("-F"))))
@@ -295,6 +296,15 @@ for MS shells."
 See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
+  ;; XXX: Abstract this grep-specific code out so other tools can do stuff like
+  ;; this.
+  ;; `setenv' modifies `process-environment' let-bound in `compilation-start'
+  ;; Any TERM except "dumb" allows GNU grep to use `--color=auto'.
+  (setenv "TERM" "emacs-urgrep")
+  ;; GREP_COLOR is used in GNU grep 2.5.1, but deprecated in later versions.
+  (setenv "GREP_COLOR" "01;31")
+  ;; GREP_COLORS is used in GNU grep 2.5.2 and later versions.
+  (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne")
   (setq-local urgrep-num-matches-found 0
               compilation-exit-message-function 'urgrep-exit-message))
 
