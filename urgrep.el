@@ -23,8 +23,8 @@
 
 ;;; Commentary:
 
-;; A universal frontend to various grep-like tools. Currently, ag, git-grep, and
-;; grep are supported.
+;; A universal frontend to various grep-like tools. Currently, ripgrep, ag, ack,
+;; git-grep, and grep are supported.
 
 ;;; Code:
 
@@ -79,9 +79,26 @@
   (rgrep-default-command query "*" nil))
 
 (defvar urgrep-tools
-  `(("ag"
+  `(("ripgrep"
+     (executable-name "rg")
+     (pre-arguments ("--color" "always" "--colors" "path:fg:magenta"
+                     "--colors" "match:fg:red" "--colors" "match:style:bold"))
+     (post-arguments ("--"))
+     (group-arguments ((t   ("--heading"))
+                       (nil ("--no-heading"))))
+     (regexp-arguments ((nil ("-F"))))
+     (context-arguments "-C%d"))
+    ("ag"
      (executable-name "ag")
      (pre-arguments ("--color-path" "35" "--color-match" "1;31"))
+     (post-arguments ("--"))
+     (group-arguments ((t   ("--group"))
+                       (nil ("--nogroup"))))
+     (regexp-arguments ((nil ("-Q"))))
+     (context-arguments "-C%d"))
+    ("ack"
+     (executable-name "ack")
+     (pre-arguments ("--color-filename" "magenta" "--color-match" "bold red"))
      (post-arguments ("--"))
      (group-arguments ((t   ("--group"))
                        (nil ("--nogroup"))))
@@ -341,7 +358,13 @@ This function is called from `compilation-filter-hook'."
       (when (< (point) end)
         (setq end (copy-marker end))
         ;; Highlight matches and delete ANSI escapes.
-        (while (re-search-forward "\033\\[0?1;31m\\(.*?\\)\033\\[0?m" end 1)
+        (while (re-search-forward
+                (concat "\\(?:"
+                        "\033\\[0?1;31m"      ; Find the escapes together...
+                        "\\|"
+                        "\033\\[1m\033\\[31m" ; ... or apart.
+                        "\\)\\(.*?\\)\033\\[0?m")
+                end 1)
           (replace-match
            (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-match)
            t t)

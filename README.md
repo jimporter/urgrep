@@ -2,7 +2,7 @@
 
 Urgrep is an experimental Emacs package to provide an alternative to `M-x rgrep`
 (and similar packages) which will eventually support for *any* grep-like tool.
-Currently, `ag`, `git grep`, and `grep`/`find` are supported.
+Currently, `ripgrep`, `ag`, `ack`, `git grep`, and `grep`/`find` are supported.
 
 ## Using Urgrep
 
