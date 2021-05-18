@@ -138,9 +138,9 @@
             (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
         ;; Cache the VC backend name if we need it.
         (when-let (((and tool-vc-backend (not vc-backend-name)))
-                   (curr-proj (project-current)))
+                   (proj (project-current)))
           (setq vc-backend-name
-                (vc-responsible-backend (project-root curr-proj))))
+                (vc-responsible-backend (project-root proj))))
         (when (and (executable-find tool-executable t)
                    (or (not tool-vc-backend)
                        (string= vc-backend-name tool-vc-backend)))
@@ -396,13 +396,24 @@ This function is called from `compilation-filter-hook'."
 
 ;; Minibuffer configuration
 
-(defun urgrep--search-prompt ()
+(defun urgrep--search-default ()
+  "Return the default thing to search for.
+If the region is active, return that. Otherwise, return the symbol at point."
+  (if (use-region-p)
+      (buffer-substring-no-properties (region-beginning) (region-end))
+    (when-let ((symbol (symbol-at-point)))
+      (substring-no-properties (symbol-name symbol)))))
+
+(defun urgrep--search-prompt (default)
   "Return the prompt to use when asking for the search query.
-This depends on the current values of various urgrep options."
+This depends on the current values of various urgrep options. DEFAULT indicates
+the default query, if any."
   (concat "Search "
           (if urgrep-search-regexp "regexp" "string")
           (when (> urgrep-context-lines 0)
             (format " -C%d" urgrep-context-lines))
+          (when default
+            (format " (default %s)" default))
           ": "))
 
 (defun urgrep--update-search-prompt ()
@@ -414,9 +425,10 @@ This depends on the current values of various urgrep options."
            (match (text-property-search-forward 'field t t))
            (begin (prop-match-beginning match))
            (end (prop-match-end match))
-           (props (text-properties-at begin)))
+           (props (text-properties-at begin))
+           (prompt (urgrep--search-prompt urgrep--search-default)))
       (delete-region begin end)
-      (insert (apply #'propertize (urgrep--search-prompt) props))))
+      (insert (apply #'propertize prompt props))))
   ;; Fix up the point if it ends up in the prompt; this can happen if the point
   ;; was at the beginning of the editable text.
   (if (< (point) (minibuffer-prompt-end)) (goto-char (minibuffer-prompt-end))))
@@ -458,9 +470,13 @@ Return a list that can be passed to `urgrep-command' to turn into a shell
 command."
   (let* ((urgrep-search-regexp regexp)
          (urgrep-context-lines context)
-         (query (read-from-minibuffer (urgrep--search-prompt) nil
-                                      urgrep-minibuffer-map nil
-                                      'urgrep-search-history)))
+         (default (urgrep--search-default))
+         (prompt (urgrep--search-prompt default))
+         (query (minibuffer-with-setup-hook
+                    (lambda () (setq-local urgrep--search-default default))
+                  (read-from-minibuffer prompt nil urgrep-minibuffer-map nil
+                                        'urgrep-search-history default)))
+         (query (if (equal query "") default query)))
     (list query :group urgrep-group-matches :regexp urgrep-search-regexp
           :context urgrep-context-lines)))
 
