@@ -236,6 +236,32 @@ for MS shells."
     ["Stop search" kill-compilation
      :help "Kill the currently running search process"]))
 
+(defvar urgrep-mode-tool-bar-map
+  ;; When bootstrapping, tool-bar-map is not properly initialized yet,
+  ;; so don't do anything.
+  (when (keymapp tool-bar-map)
+    (let ((map (copy-keymap tool-bar-map)))
+      (define-key map [undo] nil)
+      (define-key map [separator-2] nil)
+      (define-key-after map [separator-urgrep] menu-bar-separator)
+      (tool-bar-local-item
+       "left-arrow" 'previous-error-no-select 'previous-error-no-select map
+       :rtl "right-arrow"
+       :help "Goto previous match")
+      (tool-bar-local-item
+       "right-arrow" 'next-error-no-select 'next-error-no-select map
+       :rtl "left-arrow"
+       :help "Goto next match")
+      (tool-bar-local-item
+       "cancel" 'kill-compilation 'kill-compilation map
+       :enable '(let ((buffer (compilation-find-buffer)))
+		  (get-buffer-process buffer))
+       :help "Stop search")
+      (tool-bar-local-item
+       "refresh" 'recompile 'recompile map
+       :help "Restart search")
+      map)))
+
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
                       face urgrep-match-count
@@ -385,7 +411,8 @@ This function is called from `compilation-filter-hook'."
 
 (define-compilation-mode urgrep-mode "Urgrep"
   "A compilation mode for various grep-like tools."
-  (setq-local compilation-process-setup-function 'urgrep-process-setup
+  (setq-local tool-bar-map urgrep-mode-tool-bar-map
+              compilation-process-setup-function 'urgrep-process-setup
               compilation-error-face 'urgrep-hit
               compilation-error-regexp-alist urgrep-regexp-alist
               compilation-mode-line-errors urgrep-mode-line-matches
