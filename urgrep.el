@@ -81,9 +81,14 @@
 ;; Urgrep tools
 
 (cl-defun urgrep-rgrep--command (query &key &allow-other-keys)
-  ;; XXX: Support literal/regexp and context settings.
+  ;; XXX: Support literal/regexp and context settings. Perhaps let-bind
+  ;; `grep-find-template' to include these options?
   (grep-compute-defaults)
   (rgrep-default-command query "*" nil))
+
+(defconst urgrep--context-arguments
+  '(((and (pred integerp) n (guard (> n 0)))
+     (list (format "-C%d" n)))))
 
 (defvar urgrep-tools
   `(("ripgrep"
@@ -92,28 +97,28 @@
      (pre-arguments ("--color" "always" "--colors" "path:fg:magenta"
                      "--colors" "match:fg:red" "--colors" "match:style:bold"))
      (post-arguments ("--"))
-     (group-arguments ((t   ("--heading"))
-                       (nil ("--no-heading"))))
-     (regexp-arguments ((nil ("-F"))))
-     (context-arguments "-C%d"))
+     (group-arguments (('nil '("--no-heading"))
+                       (_    '("--heading"))))
+     (regexp-arguments (('nil '("-F"))))
+     (context-arguments ,urgrep--context-arguments))
     ("ag"
      (executable-name "ag")
      (regexp-syntax (pcre))
      (pre-arguments ("--color-path" "35" "--color-match" "1;31"))
      (post-arguments ("--"))
-     (group-arguments ((t   ("--group"))
-                       (nil ("--nogroup"))))
-     (regexp-arguments ((nil ("-Q"))))
-     (context-arguments "-C%d"))
+     (group-arguments (('nil '("--nogroup"))
+                       (_    '("--group"))))
+     (regexp-arguments (('nil '("-Q"))))
+     (context-arguments ,urgrep--context-arguments))
     ("ack"
      (executable-name "ack")
      (regexp-syntax (pcre))
      (pre-arguments ("--color-filename" "magenta" "--color-match" "bold red"))
      (post-arguments ("--"))
-     (group-arguments ((t   ("--group"))
-                       (nil ("--nogroup"))))
-     (regexp-arguments ((nil ("-Q"))))
-     (context-arguments "-C%d"))
+     (group-arguments (('nil '("--nogroup"))
+                       (_    '("--group"))))
+     (regexp-arguments (('nil '("-Q"))))
+     (context-arguments ,urgrep--context-arguments))
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
@@ -122,12 +127,12 @@
                      "-c" "color.grep.match=bold red" "grep" "--color" "-n"
                      "--recurse-submodules"))
      (post-arguments ("-e"))
-     (group-arguments ((t ("--heading" "--break"))))
-     (regexp-arguments ((bre ("-G"))
-                        (ere ("-E"))
-                        (pcre ("-P"))
-                        (nil ("-F"))))
-     (context-arguments "-C%d"))
+     (group-arguments (('t '("--heading" "--break"))))
+     (regexp-arguments (('bre  '("-G"))
+                        ('ere  '("-E"))
+                        ('pcre '("-P"))
+                        (_     '("-F"))))
+     (context-arguments ,urgrep--context-arguments))
     ("grep"
      (executable-name "grep")
      (command-function ,#'urgrep-rgrep--command)))
@@ -138,11 +143,11 @@
   (when-let ((prop-entry (assoc prop (cdr tool))))
     (cadr prop-entry)))
 
-(defun urgrep-get-property-assoc (tool prop key)
-  "Get a given property PROP from TOOL, selecting a KEY from the alist value."
-  (when-let ((prop-value (urgrep-get-property tool prop))
-             (assoc-value (assoc key prop-value)))
-    (cadr assoc-value)))
+(defun urgrep-get-property-pcase (tool prop value)
+  "Get a given property PROP from TOOL and use it as a `pcase' macro for VALUE."
+  (when-let ((cases (urgrep-get-property tool prop))
+             (block (append `(,#'pcase ',value) cases)))
+    (eval block t)))
 
 (defun urgrep-get-tool ()
   "Get the preferred urgrep tool from `urgrep-tools'."
@@ -200,19 +205,12 @@ for MS shells."
            (executable (urgrep-get-property tool 'executable-name))
            (pre-args (or (urgrep-get-property tool 'pre-arguments) '()))
            (arguments (or (urgrep-get-property tool 'post-arguments) '())))
-      ;; Fill in group arguments. XXX: Maybe figure out a more flexible way to
-      ;; do this?
-      (when-let ((x (urgrep-get-property-assoc tool 'group-arguments group)))
-        (setq arguments (append x arguments)))
-      ;; Fill in regexp/literal arguments.
-      (when-let ((x (urgrep-get-property-assoc tool 'regexp-arguments
-                                               tool-re-syntax)))
-        (setq arguments (append x arguments)))
-      ;; Fill in context arguments.
-      (when-let (((> context 0))
-                 (prop (urgrep-get-property tool 'context-arguments))
-                 (context-arg (format prop context)))
-        (setq arguments (append (list context-arg) arguments)))
+      ;; Fill in various options according to the tool's argument syntax.
+      (dolist (i `((group-arguments   . ,group)
+                   (regexp-arguments  . ,tool-re-syntax)
+                   (context-arguments . ,context)))
+        (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i))))
+          (setq arguments (append args arguments))))
       ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
       ;; doesn't handle TRAMP right...
       (mapconcat #'urgrep--maybe-shell-quote-argument
