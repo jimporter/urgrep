@@ -33,8 +33,12 @@
                    (concat common-args "-F --heading -- foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "-F --no-heading -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :regexp t)
-                   (concat common-args "--heading -- foo")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'bre)
+                   (concat common-args "--heading -- \\\\\\(foo\\\\\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'ere)
+                   (concat common-args "--heading -- \\(foo\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'pcre)
+                   (concat common-args "--heading -- \\(foo\\)")))
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -F --heading -- foo")))))
 
@@ -45,8 +49,12 @@
                    (concat common-args "-Q --group -- foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "-Q --nogroup -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :regexp t)
-                   (concat common-args "--group -- foo")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'bre)
+                   (concat common-args "--group -- \\\\\\(foo\\\\\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'ere)
+                   (concat common-args "--group -- \\(foo\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'pcre)
+                   (concat common-args "--group -- \\(foo\\)")))
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -Q --group -- foo")))))
 
@@ -57,8 +65,12 @@
                    (concat common-args "-Q --group -- foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "-Q --nogroup -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :regexp t)
-                   (concat common-args "--group -- foo")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'bre)
+                   (concat common-args "--group -- \\\\\\(foo\\\\\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'ere)
+                   (concat common-args "--group -- \\(foo\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'pcre)
+                   (concat common-args "--group -- \\(foo\\)")))
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -Q --group -- foo")))))
 
@@ -69,8 +81,12 @@
                    (concat common-args "-F --heading --break -e foo")))
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "-F -e foo")))
-    (should (equal (urgrep-command "foo" :tool tool :regexp t)
-                   (concat common-args "--heading --break -e foo")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'bre)
+                   (concat common-args "-G --heading --break -e \\(foo\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'ere)
+                   (concat common-args "-E --heading --break -e \\(foo\\)")))
+    (should (equal (urgrep-command "(foo)" :tool tool :regexp-syntax 'pcre)
+                   (concat common-args "-P --heading --break -e \\(foo\\)")))
     (should (equal (urgrep-command "foo" :tool tool :context 3)
                    (concat common-args "-C3 -F --heading --break -e foo")))))
 
@@ -81,7 +97,14 @@
     (should (string-match "^find \\."
                           (urgrep-command "foo" :tool tool :group nil)))
     (should (string-match "^find \\."
-                          (urgrep-command "foo" :tool tool :regexp t)))
+                          (urgrep-command "(foo)" :tool tool
+                                          :regexp-syntax 'bre)))
+    (should (string-match "^find \\."
+                          (urgrep-command "(foo)" :tool tool
+                                          :regexp-syntax 'ere)))
+    (should (string-match "^find \\."
+                          (urgrep-command "(foo)" :tool tool
+                                          :regexp-syntax 'pcre)))
     (should (string-match "^find \\."
                           (urgrep-command "foo" :tool tool :context 3)))))
 

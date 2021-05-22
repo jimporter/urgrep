@@ -49,6 +49,13 @@
   :type 'boolean
   :group 'urgrep)
 
+(defcustom urgrep-regexp-syntax 'bre
+  "Default syntax to use for regexp searches."
+  :type '(choice (const :tag "Basic regexp" bre)
+                 (const :tag "Extended regexp" ere)
+                 (const :tag "Perl-compatible regexp" pcre))
+  :group 'urgrep)
+
 (defcustom urgrep-context-lines 0
   "Number of lines of context to show."
   :type 'integer
@@ -81,6 +88,7 @@
 (defvar urgrep-tools
   `(("ripgrep"
      (executable-name "rg")
+     (regexp-syntax (pcre))
      (pre-arguments ("--color" "always" "--colors" "path:fg:magenta"
                      "--colors" "match:fg:red" "--colors" "match:style:bold"))
      (post-arguments ("--"))
@@ -90,6 +98,7 @@
      (context-arguments "-C%d"))
     ("ag"
      (executable-name "ag")
+     (regexp-syntax (pcre))
      (pre-arguments ("--color-path" "35" "--color-match" "1;31"))
      (post-arguments ("--"))
      (group-arguments ((t   ("--group"))
@@ -98,6 +107,7 @@
      (context-arguments "-C%d"))
     ("ack"
      (executable-name "ack")
+     (regexp-syntax (pcre))
      (pre-arguments ("--color-filename" "magenta" "--color-match" "bold red"))
      (post-arguments ("--"))
      (group-arguments ((t   ("--group"))
@@ -107,12 +117,16 @@
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
+     (regexp-syntax (bre ere pcre))
      (pre-arguments ("--no-pager" "-c" "color.grep.filename=magenta"
                      "-c" "color.grep.match=bold red" "grep" "--color" "-n"
                      "--recurse-submodules"))
      (post-arguments ("-e"))
      (group-arguments ((t ("--heading" "--break"))))
-     (regexp-arguments ((nil ("-F"))))
+     (regexp-arguments ((bre ("-G"))
+                        (ere ("-E"))
+                        (pcre ("-P"))
+                        (nil ("-F"))))
      (context-arguments "-C%d"))
     ("grep"
      (executable-name "grep")
@@ -156,33 +170,54 @@ for MS shells."
       argument
     (shell-quote-argument argument)))
 
-(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
+(defun urgrep--get-best-syntax (syntax tool)
+  "Return the regexp syntax closest to SYNTAX that TOOL supports."
+  (let ((tool-syntaxes (urgrep-get-property tool 'regexp-syntax)))
+    (cond ((not syntax) nil)
+          ((memq syntax tool-syntaxes) syntax)
+          ((and (eq syntax 'ere) (memq 'pcre tool-syntaxes)) 'pcre)
+          ((and (eq syntax 'pcre) (memq 'extended tool-syntaxes)) 'ere)
+          (t (car tool-syntaxes)))))
+
+(defun urgrep--convert-regexp (expr from-syntax to-syntax)
+  "Convert the regexp EXP from FROM-SYNTAX to TO-SYNTAX."
+  (cond ((and (not (eq from-syntax to-syntax))
+              (or (eq from-syntax 'bre) (eq to-syntax 'bre)))
+         ;; XXX: This is a bit of a hack, but xref.el contains an internal
+         ;; function for converting between basic and extended regexps. It might
+         ;; be wise to use our own implementation, but this should work for now.
+         (require 'xref)
+         (xref--regexp-to-extended expr))
+        (t expr)))
+
+(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp-syntax
                                 (context 0))
-  (let* ((tool (or tool (urgrep-get-tool)))
-         (cmd-fun (urgrep-get-property tool 'command-function)))
-    (if cmd-fun
-        (apply cmd-fun query rest)
-      (let ((executable (urgrep-get-property tool 'executable-name))
-            (pre-args (or (urgrep-get-property tool 'pre-arguments) '()))
-            (arguments (or (urgrep-get-property tool 'post-arguments) '())))
-        ;; Fill in group arguments. XXX: Maybe figure out a more flexible way to
-        ;; do this?
-        (when-let ((x (urgrep-get-property-assoc tool 'group-arguments group)))
-          (setq arguments (append x arguments)))
-        ;; Fill in regexp/literal arguments.
-        (when-let ((x (urgrep-get-property-assoc tool 'regexp-arguments
-                                                 regexp)))
-          (setq arguments (append x arguments)))
-        ;; Fill in context arguments.
-        (when-let (((> context 0))
-                   (prop (urgrep-get-property tool 'context-arguments))
-                   (context-arg (format prop context)))
-          (setq arguments (append (list context-arg) arguments)))
-        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
-        ;; doesn't handle TRAMP right...
-        (mapconcat #'urgrep--maybe-shell-quote-argument
-                   (append `(,executable) pre-args arguments `(,query))
-                   " ")))))
+  (if-let ((tool (or tool (urgrep-get-tool)))
+           (cmd-fun (urgrep-get-property tool 'command-function)))
+      (apply cmd-fun query rest)
+    (let* ((tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
+           (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
+           (executable (urgrep-get-property tool 'executable-name))
+           (pre-args (or (urgrep-get-property tool 'pre-arguments) '()))
+           (arguments (or (urgrep-get-property tool 'post-arguments) '())))
+      ;; Fill in group arguments. XXX: Maybe figure out a more flexible way to
+      ;; do this?
+      (when-let ((x (urgrep-get-property-assoc tool 'group-arguments group)))
+        (setq arguments (append x arguments)))
+      ;; Fill in regexp/literal arguments.
+      (when-let ((x (urgrep-get-property-assoc tool 'regexp-arguments
+                                               tool-re-syntax)))
+        (setq arguments (append x arguments)))
+      ;; Fill in context arguments.
+      (when-let (((> context 0))
+                 (prop (urgrep-get-property tool 'context-arguments))
+                 (context-arg (format prop context)))
+        (setq arguments (append (list context-arg) arguments)))
+      ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
+      ;; doesn't handle TRAMP right...
+      (mapconcat #'urgrep--maybe-shell-quote-argument
+                 (append `(,executable) pre-args arguments `(,query))
+                 " "))))
 
 
 ;; urgrep-mode
@@ -255,7 +290,7 @@ for MS shells."
       (tool-bar-local-item
        "cancel" 'kill-compilation 'kill-compilation map
        :enable '(let ((buffer (compilation-find-buffer)))
-		  (get-buffer-process buffer))
+                  (get-buffer-process buffer))
        :help "Stop search")
       (tool-bar-local-item
        "refresh" 'recompile 'recompile map
@@ -357,17 +392,17 @@ See `compilation-error-regexp-alist' for format details.")
       ;; sets buffer-modified to nil before running the command,
       ;; so the buffer is still unmodified if there is no output.
       (cond ((and (zerop code) (buffer-modified-p))
-	     (if (> urgrep-num-matches-found 0)
+             (if (> urgrep-num-matches-found 0)
                  (cons (format (ngettext "finished with %d match found\n"
                                          "finished with %d matches found\n"
                                          urgrep-num-matches-found)
                                urgrep-num-matches-found)
                        "matched")
                '("finished with matches found\n" . "matched")))
-	    ((not (buffer-modified-p))
-	     '("finished with no matches found\n" . "no match"))
-	    (t
-	     (cons msg code)))
+            ((not (buffer-modified-p))
+             '("finished with no matches found\n" . "no match"))
+            (t
+             (cons msg code)))
     (cons msg code)))
 
 (defun urgrep-filter ()
@@ -504,7 +539,8 @@ command."
                   (read-from-minibuffer prompt nil urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :group urgrep-group-matches :regexp urgrep-search-regexp
+    (list query :group urgrep-group-matches
+          :regexp-syntax (and urgrep-search-regexp urgrep-regexp-syntax)
           :context urgrep-context-lines)))
 
 
