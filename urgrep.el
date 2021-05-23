@@ -138,32 +138,63 @@
      (command-function ,#'urgrep-rgrep--command)))
   "An alist of known tools to try when running urgrep.")
 
+(defcustom urgrep-preferred-tools nil
+  "List of urgrep tools to search for.
+This can be nil to use the default list of tools in `urgrep-tools'
+or a list of tool names to try in descending order of preference."
+  :type `(choice (const :tag "Default" nil)
+                 (repeat :tag "List of tools"
+                         (choice . ,(mapcar (lambda (i) (list 'const (car i)))
+                                            urgrep-tools))))
+  :group 'urgrep)
+
+(defvar urgrep--host-defaults '()
+  "Default urgrep values for each known host.
+This is an alist of host symbols (`localhost' or a TRAMP host) and
+the default tool to use on that host.")
+
 (defun urgrep-get-property (tool prop)
-  "Get a given property PROP from TOOL, or nil if PROP is undefined."
+  "Get the property PROP from TOOL, or nil if PROP is undefined."
   (when-let ((prop-entry (assoc prop (cdr tool))))
     (cadr prop-entry)))
 
 (defun urgrep-get-property-pcase (tool prop value)
-  "Get a given property PROP from TOOL and use it as a `pcase' macro for VALUE."
+  "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE."
   (when-let ((cases (urgrep-get-property tool prop))
              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
 
-(defun urgrep-get-tool ()
-  "Get the preferred urgrep tool from `urgrep-tools'."
-  (let ((vc-backend-name))
-    (cl-dolist (tool urgrep-tools)
-      (let ((tool-executable (urgrep-get-property tool 'executable-name))
-            (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
-        ;; Cache the VC backend name if we need it.
-        (when-let (((and tool-vc-backend (not vc-backend-name)))
-                   (proj (project-current)))
-          (setq vc-backend-name
-                (vc-responsible-backend (project-root proj))))
-        (when (and (executable-find tool-executable t)
-                   (or (not tool-vc-backend)
-                       (string= vc-backend-name tool-vc-backend)))
-          (cl-return tool))))))
+(defun urgrep--get-default-tool ()
+  "Get the preferred urgrep tool from `urgrep-tools'.
+This caches the default tool per-host in `urgrep--host-defaults'."
+  (if-let ((host-id (intern (or (file-remote-p default-directory) "localhost")))
+           (cached-tool-name (alist-get host-id urgrep--host-defaults)))
+      (assoc cached-tool-name urgrep-tools)
+    (let ((vc-backend-name))
+      (cl-dolist (tool (or urgrep-preferred-tools urgrep-tools))
+        (let* ((tool (if (stringp tool) (assoc tool urgrep-tools) tool))
+               (tool-executable (urgrep-get-property tool 'executable-name))
+               (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
+          ;; Cache the VC backend name if we need it.
+          (when-let (((and tool-vc-backend (not vc-backend-name)))
+                     (proj (project-current)))
+            (setq vc-backend-name (vc-responsible-backend (project-root proj))))
+          ;; If we find the executable (and it's for the right VC backend, if
+          ;; relevant), cache it and then return it.
+          (when (and (executable-find tool-executable t)
+                     (or (not tool-vc-backend)
+                         (string= vc-backend-name tool-vc-backend)))
+            (add-to-list 'urgrep--host-defaults (cons host-id (car tool)))
+            (cl-return tool)))))))
+
+(defun urgrep-get-tool (&optional tool)
+  "Get the urgrep tool for TOOL.
+If TOOL is nil, get the default tool. If TOOL is a string, look it
+up in `urgrep-tools'. Otherwise, return TOOL as-is."
+  (pcase tool
+    ('nil (urgrep--get-default-tool))
+    ((and (pred stringp) tool) (assoc tool urgrep-tools))
+    (tool tool)))
 
 (defun urgrep--maybe-shell-quote-argument (argument)
   "Quote ARGUMENT if needed for passing to an inferior shell.
@@ -185,7 +216,7 @@ for MS shells."
           (t (car tool-syntaxes)))))
 
 (defun urgrep--convert-regexp (expr from-syntax to-syntax)
-  "Convert the regexp EXP from FROM-SYNTAX to TO-SYNTAX."
+  "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
   (cond ((and (not (eq from-syntax to-syntax))
               (or (eq from-syntax 'bre) (eq to-syntax 'bre)))
          ;; XXX: This is a bit of a hack, but xref.el contains an internal
@@ -197,7 +228,7 @@ for MS shells."
 
 (cl-defun urgrep-command (query &rest rest &key tool (group t) regexp-syntax
                                 (context 0))
-  (if-let ((tool (or tool (urgrep-get-tool)))
+  (if-let ((tool (urgrep-get-tool tool))
            (cmd-fun (urgrep-get-property tool 'command-function)))
       (apply cmd-fun query rest)
     (let* ((tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))

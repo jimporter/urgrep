@@ -25,6 +25,8 @@
 ;;; Code:
 
 (require 'ert)
+(unless (fboundp 'always)
+  (defun always (&rest _) t))
 
 (ert-deftest urgrep-tests-command-ripgrep ()
   (let ((tool (assoc "ripgrep" urgrep-tools))
@@ -107,6 +109,38 @@
                                           :regexp-syntax 'pcre)))
     (should (string-match "^find \\."
                           (urgrep-command "foo" :tool tool :context 3)))))
+
+(ert-deftest urgrep-tests-get-tool-default ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults '())
+           (tool (urgrep-get-tool)))
+      (should (equal (car tool) "ripgrep"))
+      (should (equal (urgrep-get-property tool 'executable-name) "rg"))
+      (should (equal urgrep--host-defaults '((localhost . "ripgrep")))))))
+
+(ert-deftest urgrep-tests-get-tool-default-cached ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults '((localhost . "ag")))
+           (tool (urgrep-get-tool)))
+      (should (equal (car tool) "ag"))
+      (should (equal (urgrep-get-property tool 'executable-name) "ag"))
+      (should (equal urgrep--host-defaults '((localhost . "ag")))))))
+
+(ert-deftest urgrep-tests-get-tool-string ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults '())
+           (tool (urgrep-get-tool "ag")))
+      (should (equal (car tool) "ag"))
+      (should (equal (urgrep-get-property tool 'executable-name) "ag"))
+      (should (equal urgrep--host-defaults '())))))
+
+(ert-deftest urgrep-tests-get-tool-cons ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults '())
+           (tool (urgrep-get-tool '("goofy" (executable-name "gf")))))
+      (should (equal (car tool) "goofy"))
+      (should (equal (urgrep-get-property tool 'executable-name) "gf"))
+      (should (equal urgrep--host-defaults '())))))
 
 (defun urgrep-tests--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))
