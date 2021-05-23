@@ -306,7 +306,7 @@ If EDIT-COMMAND is non-nil, the search can be edited."
                        (apply #'urgrep--read-query urgrep-last-query))
                       (t (urgrep--read-command urgrep-last-query))))
          (command (if (listp query)
-                      (apply #'urgrep-to-command query)
+                      (apply #'urgrep--to-command query)
                     query)))
     (with-current-buffer (compilation-start command 'urgrep-mode)
       (setq urgrep-last-query query))))
