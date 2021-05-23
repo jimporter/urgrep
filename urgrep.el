@@ -57,8 +57,10 @@
   :group 'urgrep)
 
 (defcustom urgrep-context-lines 0
-  "Number of lines of context to show."
-  :type 'integer
+  "Number of lines of context to show.
+If this is an integer, show that many lines of context on either side.
+If a cons, show CAR and CDR lines before and after, respectively."
+  :type '(choice integer (cons integer integer))
   :group 'urgrep)
 
 (defface urgrep-hit '((t :inherit compilation-info))
@@ -87,8 +89,11 @@
   (rgrep-default-command query "*" nil))
 
 (defconst urgrep--context-arguments
-  '(((and (pred integerp) n (guard (> n 0)))
-     (list (format "-C%d" n)))))
+  '(((or '(0 . 0) 0) nil)
+    (`(,b . 0) (list (format "-B%d" b)))
+    (`(0 . ,a) (list (format "-A%d" a)))
+    ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
+    (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
 
 (defvar urgrep-tools
   `(("ripgrep"
@@ -528,8 +533,9 @@ This depends on the current values of various urgrep options. DEFAULT indicates
 the default query, if any."
   (concat "Search "
           (if urgrep-search-regexp "regexp" "string")
-          (when (> urgrep-context-lines 0)
-            (format " -C%d" urgrep-context-lines))
+          (let ((block (append `(,#'pcase ',urgrep-context-lines)
+                               urgrep--context-arguments)))
+            (mapconcat (lambda (i) (concat " " i)) (eval block t) ""))
           (when default
             (format " (default %s)" default))
           ": "))
@@ -560,18 +566,46 @@ future searches."
   (setq urgrep-search-regexp (not urgrep-search-regexp))
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
+(defun urgrep--read-context (prompt)
+  "Read the number of lines of context, prompting with PROMPT.
+If called with a prefix argument, use its numeric value instead of
+prompting."
+  (if current-prefix-arg
+      (prefix-numeric-value current-prefix-arg)
+    (let ((enable-recursive-minibuffers t))
+      (read-number prompt))))
+
 (defun urgrep-set-context (lines)
   "Set the number of LINES of context to show in the search results.
 Within the `urgrep' search prompt, this sets the value only for the
 current search.  Outside the prompt, this sets the value for all
 future searches."
-  (interactive
-   (list
-    (if current-prefix-arg
-        (prefix-numeric-value current-prefix-arg)
-      (let ((enable-recursive-minibuffers t))
-        (read-number "Context: ")))))
+  (interactive (list (urgrep--read-context "Context: ")))
   (setq urgrep-context-lines lines)
+  (when (window-minibuffer-p) (urgrep--update-search-prompt)))
+
+(defun urgrep-set-before-context (before-lines)
+  "Set the number of BEFORE-LINES of context to show in the search results.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
+  (interactive (list (urgrep--read-context "Context before: ")))
+  (let ((after-lines (if (consp urgrep-context-lines)
+                         (cdr urgrep-context-lines)
+                       urgrep-context-lines)))
+    (setq urgrep-context-lines (cons before-lines after-lines)))
+  (when (window-minibuffer-p) (urgrep--update-search-prompt)))
+
+(defun urgrep-set-after-context (after-lines)
+  "Set the number of AFTER-LINES of context to show in the search results.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
+  (interactive (list (urgrep--read-context "Context after: ")))
+  (let ((before-lines (if (consp urgrep-context-lines)
+                          (car urgrep-context-lines)
+                       urgrep-context-lines)))
+    (setq urgrep-context-lines (cons before-lines after-lines)))
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
 (defvar urgrep-minibuffer-map
@@ -579,6 +613,8 @@ future searches."
     (set-keymap-parent map minibuffer-local-map)
     (define-key map "\C-c\C-r" #'urgrep-toggle-regexp)
     (define-key map "\C-c\C-c" #'urgrep-set-context)
+    (define-key map "\C-c\C-b" #'urgrep-set-before-context)
+    (define-key map "\C-c\C-a" #'urgrep-set-after-context)
     map))
 
 (cl-defun urgrep--read-query (initial &key (regexp urgrep-search-regexp)
@@ -599,12 +635,14 @@ command."
           :context urgrep-context-lines)))
 
 (defun urgrep--read-command (command)
+  "Read a shell command to use for searching, with initial value COMMAND."
   (read-shell-command "Search command: " command
                       (if (equal (car urgrep-command-history) command)
                           '(urgrep-command-history . 1)
                         'urgrep-command-history)))
 
 (cl-defun urgrep--to-command (query &key regexp context)
+  "Convert the result of `urgrep--read-query' to a shell command."
   (urgrep-command query :group urgrep-group-matches
                   :regexp-syntax (and regexp urgrep-regexp-syntax)
                   :context context))
@@ -613,6 +651,10 @@ command."
 ;; User-facing functions (and supporting helpers)
 
 (defun urgrep--read-directory (arg)
+  "Get the directory to search in.
+If ARG is nil, return the project's root directory. If ARG's numeric
+value is 4, return the current directory. Otherwise, prompt for the
+directory."
   (cond
    ((not arg) (let ((proj (project-current)))
                 (if proj (project-root proj) default-directory)))
@@ -634,7 +676,9 @@ entering the search query:
 Type \\[urgrep-toggle-regexp] to toggle regular-expression mode.
 Type \\[urgrep-set-context] to set the number of context lines.
   With a numeric prefix argument, set the context to that many
-  lines.  Without a prefix, prompt for the number."
+  lines.  Without a prefix, prompt for the number.
+Type \\[urgrep-set-before-context] to set the number of before context lines.
+Type \\[urgrep-set-after-context] to set the number of after context lines."
   (interactive
    (list
     ;; Wrap the command in a list so that we can tell it's a real command, not
