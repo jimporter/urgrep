@@ -82,11 +82,20 @@ If a cons, show CAR and CDR lines before and after, respectively."
 
 ;; Urgrep tools
 
-(cl-defun urgrep-rgrep--command (query &key &allow-other-keys)
-  ;; XXX: Support literal/regexp and context settings. Perhaps let-bind
-  ;; `grep-find-template' to include these options?
+(cl-defun urgrep--rgrep-command (query &key tool regexp-syntax context
+                                       &allow-other-keys)
   (grep-compute-defaults)
-  (rgrep-default-command query "*" nil))
+  ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
+  (let ((grep-find-template grep-find-template))
+    (dolist (i `((regexp-arguments  . ,regexp-syntax)
+                 (context-arguments . ,context)))
+      (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i)))
+                 (args (mapconcat #'urgrep--maybe-shell-quote-argument args
+                                  " "))
+                 ((string-match "<C>" grep-find-template)))
+        (setq grep-find-template
+              (replace-match (concat args " <C>") t t grep-find-template))))
+    (rgrep-default-command query "*" nil)))
 
 (defconst urgrep--context-arguments
   '(((or '(0 . 0) 0) nil)
@@ -145,7 +154,12 @@ If a cons, show CAR and CDR lines before and after, respectively."
      (case-fold-arguments (((pred identity) '("-i")))))
     ("grep"
      (executable-name "grep")
-     (command-function ,#'urgrep-rgrep--command)))
+     (command-function ,#'urgrep--rgrep-command)
+     (context-arguments ,urgrep--context-arguments)
+     (regexp-arguments (('bre  '("-G"))
+                        ('ere  '("-E"))
+                        ('pcre '("-P"))
+                        (_     '("-F"))))))
   "An alist of known tools to try when running urgrep.")
 
 (defcustom urgrep-preferred-tools nil
@@ -248,7 +262,7 @@ for MS shells."
                                 (context 0))
   (if-let ((tool (urgrep-get-tool tool))
            (cmd-fun (urgrep-get-property tool 'command-function)))
-      (apply cmd-fun query rest)
+      (apply cmd-fun query :tool tool rest)
     (let* ((tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
            (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
            (fold-case (and case-fold-search

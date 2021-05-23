@@ -147,29 +147,33 @@
 (ert-deftest urgrep-tests-command-grep ()
   (let ((tool (assoc "grep" urgrep-tools)))
     ;; String/case
-    (should (string-match "^find \\. .*grep .*-i .*foo"
+    (should (string-match "^find \\. .*grep -F .*-i .*foo"
                           (urgrep-command "foo" :tool tool)))
-    (should (string-match "^find \\. .*grep .*Foo"
+    (should (string-match "^find \\. .*grep -F .*Foo"
                           (urgrep-command "Foo" :tool tool)))
     (let ((case-fold-search nil))
-      (should (string-match "^find \\. .*grep .*foo"
+      (should (string-match "^find \\. .*grep -F .*foo"
                             (urgrep-command "foo" :tool tool))))
     ;; Group
-    (should (string-match "^find \\. .*grep .*-i .*foo"
+    (should (string-match "^find \\. .*grep -F .*-i .*foo"
                           (urgrep-command "foo" :tool tool :group nil)))
     ;; Regexp
-    (should (string-match "^find \\. .*grep .*-i .*\\\\(foo\\\\)"
+    (should (string-match "^find \\. .*grep -G .*-i .*\\\\(foo\\\\)"
                           (urgrep-command "(foo)" :tool tool
                                           :regexp-syntax 'bre)))
-    (should (string-match "^find \\. .*grep .*-i .*\\\\(foo\\\\)"
+    (should (string-match "^find \\. .*grep -E .*-i .*\\\\(foo\\\\)"
                           (urgrep-command "(foo)" :tool tool
                                           :regexp-syntax 'ere)))
-    (should (string-match "^find \\. .*grep .*-i .*\\\\(foo\\\\)"
+    (should (string-match "^find \\. .*grep -P .*-i .*\\\\(foo\\\\)"
                           (urgrep-command "(foo)" :tool tool
                                           :regexp-syntax 'pcre)))
     ;; Context
-    (should (string-match "^find \\. .*grep .*-i .*foo"
-                          (urgrep-command "foo" :tool tool :context 3)))))
+    (should (string-match "^find \\. .*grep -F -C3 .*-i .*foo"
+                          (urgrep-command "foo" :tool tool :context 3)))
+    (should (string-match "^find \\. .*grep -F -C3 .*-i .*foo"
+                          (urgrep-command "foo" :tool tool :context '(3 . 3))))
+    (should (string-match "^find \\. .*grep -F -B2 -A4 .*-i .*foo"
+                          (urgrep-command "foo" :tool tool :context '(2 . 4))))))
 
 (ert-deftest urgrep-tests-get-tool-default ()
   (cl-letf (((symbol-function #'executable-find) #'always))
