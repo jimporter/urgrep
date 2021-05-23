@@ -259,7 +259,6 @@ for MS shells."
 
 ;; urgrep-mode
 
-(defvar urgrep-search-history nil "History list for urgrep.")
 (defvar urgrep-num-matches-found 0
   "Running total of matches found. This will be set buffer-locally.")
 
@@ -267,6 +266,23 @@ for MS shells."
 ;; XXX: It might be worth changing this to 1 if we allow reading the column
 ;; number explicitly in the output.
 (defvar urgrep-first-column 0)
+
+(defvar-local urgrep-last-query nil
+  "The last search query run in this buffer.")
+
+(defun urgrep-search-again (&optional edit-command)
+  "Re-run the previous search.
+If EDIT-COMMAND is non-nil, the search can be edited."
+  (interactive "P")
+  (let* ((query (cond ((not edit-command) urgrep-last-query)
+                      ((listp urgrep-last-query)
+                       (apply #'urgrep--read-query urgrep-last-query))
+                      (t (urgrep--read-command urgrep-last-query))))
+         (command (if (listp query)
+                      (apply #'urgrep-to-command query)
+                    query)))
+    (with-current-buffer (compilation-start command 'urgrep-mode)
+      (setq urgrep-last-query query))))
 
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
@@ -289,7 +305,7 @@ for MS shells."
     (define-key map "}" 'compilation-next-file)
     (define-key map "\t" 'compilation-next-error)
     (define-key map [backtab] 'compilation-previous-error)
-    (define-key map "g" 'recompile)
+    (define-key map "g" 'urgrep-search-again)
     map)
   "Keymap for urgrep buffers.")
 
@@ -495,6 +511,9 @@ This function is called from `compilation-filter-hook'."
 
 ;; Minibuffer configuration
 
+(defvar urgrep-search-history nil "History list for urgrep search queries.")
+(defvar urgrep-command-history nil "History list for urgrep commands.")
+
 (defun urgrep--search-default ()
   "Return the default thing to search for.
 If the region is active, return that. Otherwise, return the symbol at point."
@@ -562,23 +581,33 @@ future searches."
     (define-key map "\C-c\C-c" #'urgrep-set-context)
     map))
 
-(cl-defun urgrep--read-query (&key (regexp urgrep-search-regexp)
-                                   (context urgrep-context-lines))
+(cl-defun urgrep--read-query (initial &key (regexp urgrep-search-regexp)
+                                      (context urgrep-context-lines))
   "Prompt the user for a search query.
 Return a list that can be passed to `urgrep-command' to turn into a shell
 command."
   (let* ((urgrep-search-regexp regexp)
          (urgrep-context-lines context)
-         (default (urgrep--search-default))
+         (default (and (not initial) (urgrep--search-default)))
          (prompt (urgrep--search-prompt default))
          (query (minibuffer-with-setup-hook
                     (lambda () (setq-local urgrep--search-default default))
-                  (read-from-minibuffer prompt nil urgrep-minibuffer-map nil
+                  (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :group urgrep-group-matches
-          :regexp-syntax (and urgrep-search-regexp urgrep-regexp-syntax)
+    (list query :regexp urgrep-search-regexp
           :context urgrep-context-lines)))
+
+(defun urgrep--read-command (command)
+  (read-shell-command "Search command: " command
+                      (if (equal (car urgrep-command-history) command)
+                          '(urgrep-command-history . 1)
+                        'urgrep-command-history)))
+
+(cl-defun urgrep--to-command (query &key regexp context)
+  (urgrep-command query :group urgrep-group-matches
+                  :regexp-syntax (and regexp urgrep-regexp-syntax)
+                  :context context))
 
 
 ;; User-facing functions (and supporting helpers)
@@ -591,7 +620,7 @@ command."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(cl-defun urgrep (query directory &rest rest &key command &allow-other-keys)
+(cl-defun urgrep (query directory &rest rest &key commandp &allow-other-keys)
   "Recursively search in DIRECTORY for a given QUERY.
 
 When called interactively, search in the project's root directory, or
@@ -611,14 +640,15 @@ Type \\[urgrep-set-context] to set the number of context lines.
     ;; Wrap the command in a list so that we can tell it's a real command, not
     ;; just a query. This gets around some limitations with mixing optional and
     ;; keyword arguments.
-    (list (apply #'urgrep-command (urgrep--read-query)))
+    (urgrep--read-query nil)
     (urgrep--read-directory current-prefix-arg)))
-  (setq query (cond
-               (command query)
-               ((listp query) (car query))
-               (t (apply #'urgrep-command query rest))))
-  (let ((default-directory (or directory default-directory)))
-    (compilation-start query 'urgrep-mode)))
+  (let ((command (cond ((listp query) (apply #'urgrep--to-command query))
+                       (commandp query)
+                       (t (apply #'urgrep-command query rest))))
+        (default-directory (or directory default-directory)))
+    (with-current-buffer (compilation-start command 'urgrep-mode)
+      (setq urgrep-last-query (if (listp query) query command))
+      (current-buffer))))
 
 (provide 'urgrep)
 
