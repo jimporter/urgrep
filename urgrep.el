@@ -148,7 +148,7 @@ or a list of tool names to try in descending order of preference."
                                             urgrep-tools))))
   :group 'urgrep)
 
-(defvar urgrep--host-defaults '()
+(defvar urgrep--host-defaults nil
   "Default urgrep values for each known host.
 This is an alist of host symbols (`localhost' or a TRAMP host) and
 the default tool to use on that host.")
@@ -170,11 +170,13 @@ This caches the default tool per-host in `urgrep--host-defaults'."
   (if-let ((host-id (intern (or (file-remote-p default-directory) "localhost")))
            (cached-tool-name (alist-get host-id urgrep--host-defaults)))
       (assoc cached-tool-name urgrep-tools)
-    (let ((vc-backend-name))
+    (let ((vc-backend-name)
+          (saw-vc-tool-p nil))
       (cl-dolist (tool (or urgrep-preferred-tools urgrep-tools))
         (let* ((tool (if (stringp tool) (assoc tool urgrep-tools) tool))
                (tool-executable (urgrep-get-property tool 'executable-name))
                (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
+          (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
           ;; Cache the VC backend name if we need it.
           (when-let (((and tool-vc-backend (not vc-backend-name)))
                      (proj (project-current)))
@@ -184,7 +186,13 @@ This caches the default tool per-host in `urgrep--host-defaults'."
           (when (and (executable-find tool-executable t)
                      (or (not tool-vc-backend)
                          (string= vc-backend-name tool-vc-backend)))
-            (add-to-list 'urgrep--host-defaults (cons host-id (car tool)))
+            ;; So long as we didn't examine a VC-specific tool, we can cache
+            ;; this result for future calls, since the result will always be the
+            ;; same. If we *did* see a VC-specific tool, this host will use
+            ;; different tools for different directories, so we can't cache
+            ;; anything.
+            (unless saw-vc-tool-p
+              (add-to-list 'urgrep--host-defaults (cons host-id (car tool))))
             (cl-return tool)))))))
 
 (defun urgrep-get-tool (&optional tool)
