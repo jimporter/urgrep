@@ -156,6 +156,9 @@ If a cons, show CAR and CDR lines before and after, respectively."
      (executable-name "grep")
      (command-function ,#'urgrep--rgrep-command)
      (context-arguments ,urgrep--context-arguments)
+     ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
+     ;; locale. Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
+     ;; is the right thing to do in general...
      (regexp-arguments (('bre  '("-G"))
                         ('ere  '("-E"))
                         ('pcre '("-P"))
