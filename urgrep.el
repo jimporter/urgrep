@@ -636,10 +636,10 @@ future searches."
 (defvar urgrep-minibuffer-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
-    (define-key map "\C-c\C-r" #'urgrep-toggle-regexp)
-    (define-key map "\C-c\C-c" #'urgrep-set-context)
-    (define-key map "\C-c\C-b" #'urgrep-set-before-context)
-    (define-key map "\C-c\C-a" #'urgrep-set-after-context)
+    (define-key map "\M-sr" #'urgrep-toggle-regexp)
+    (define-key map "\M-sC" #'urgrep-set-context)
+    (define-key map "\M-sB" #'urgrep-set-before-context)
+    (define-key map "\M-sA" #'urgrep-set-after-context)
     map))
 
 (cl-defun urgrep--read-query (initial &key (regexp urgrep-search-regexp)
