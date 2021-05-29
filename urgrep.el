@@ -93,12 +93,12 @@ If a cons, show CAR and CDR lines before and after, respectively."
 
 ;; Urgrep tools
 
-(cl-defun urgrep--rgrep-command (query &key tool regexp-syntax context
+(cl-defun urgrep--rgrep-command (query &key tool regexp context
                                        &allow-other-keys)
   (grep-compute-defaults)
   ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
   (let ((grep-find-template grep-find-template))
-    (dolist (i `((regexp-arguments  . ,regexp-syntax)
+    (dolist (i `((regexp-arguments  . ,regexp)
                  (context-arguments . ,context)))
       (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i)))
                  (args (mapconcat #'urgrep--maybe-shell-quote-argument args
@@ -273,9 +273,10 @@ for MS shells."
          (xref--regexp-to-extended expr))
         (t expr)))
 
-(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp-syntax
+(cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
                                 (case-fold 'inherit) (context 0))
-  (let* ((tool (urgrep-get-tool tool))
+  (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
+         (tool (urgrep-get-tool tool))
          (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
          (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
          (cmd-fun (urgrep-get-property tool 'command-function)))
@@ -286,7 +287,8 @@ for MS shells."
       (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
     ;; Build the command arguments.
     (if cmd-fun
-        (apply cmd-fun query :tool tool :case-fold case-fold rest)
+        (apply cmd-fun query :tool tool :regexp regexp-syntax
+               :case-fold case-fold rest)
       (let* ((executable (urgrep-get-property tool 'executable-name))
              (pre-args (urgrep-get-property tool 'pre-arguments))
              (arguments (urgrep-get-property tool 'post-arguments)))
@@ -326,7 +328,7 @@ If EDIT-COMMAND is non-nil, the search can be edited."
                        (apply #'urgrep--read-query urgrep-last-query))
                       (t (urgrep--read-command urgrep-last-query))))
          (command (if (listp query)
-                      (apply #'urgrep--to-command query)
+                      (apply #'urgrep-command query)
                     query)))
     (with-current-buffer (compilation-start command 'urgrep-mode)
       (setq urgrep-last-query query))))
@@ -670,7 +672,8 @@ future searches."
     (define-key map "\M-sA" #'urgrep-set-after-context)
     map))
 
-(cl-defun urgrep--read-query (initial &key (regexp urgrep-search-regexp)
+(cl-defun urgrep--read-query (initial &key (group urgrep-group-matches)
+                                      (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
                                       (context urgrep-context-lines))
   "Prompt the user for a search query.
@@ -686,8 +689,8 @@ command."
                   (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :regexp urgrep-search-regexp :case-fold urgrep-case-fold
-          :context urgrep-context-lines)))
+    (list query :group group :regexp urgrep-search-regexp
+          :case-fold urgrep-case-fold :context urgrep-context-lines)))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
@@ -695,12 +698,6 @@ command."
                       (if (equal (car urgrep-command-history) command)
                           '(urgrep-command-history . 1)
                         'urgrep-command-history)))
-
-(cl-defun urgrep--to-command (query &key regexp case-fold context)
-  "Convert the result of `urgrep--read-query' to a shell command."
-  (urgrep-command query :group urgrep-group-matches
-                  :regexp-syntax (and regexp urgrep-regexp-syntax)
-                  :case-fold case-fold :context context))
 
 
 ;; User-facing functions (and supporting helpers)
@@ -742,7 +739,7 @@ Type \\[urgrep-set-after-context] to set the number of after context lines."
     ;; keyword arguments.
     (urgrep--read-query nil)
     (urgrep--read-directory current-prefix-arg)))
-  (let ((command (cond ((listp query) (apply #'urgrep--to-command query))
+  (let ((command (cond ((listp query) (apply #'urgrep-command query))
                        (commandp query)
                        (t (apply #'urgrep-command query rest))))
         (default-directory (or directory default-directory)))
