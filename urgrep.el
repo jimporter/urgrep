@@ -734,9 +734,8 @@ Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines."
   (interactive
    (list
-    ;; Wrap the command in a list so that we can tell it's a real command, not
-    ;; just a query. This gets around some limitations with mixing optional and
-    ;; keyword arguments.
+    ;; This will wrap the command in a list so that we can tell it's a real
+    ;; command, not just a query.
     (urgrep--read-query nil)
     (urgrep--read-directory current-prefix-arg)))
   (let ((command (cond ((listp query) (apply #'urgrep-command query))
