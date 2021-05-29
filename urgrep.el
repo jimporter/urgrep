@@ -56,6 +56,17 @@
                  (const :tag "Perl-compatible regexp" pcre))
   :group 'urgrep)
 
+(defcustom urgrep-case-fold 'inherit
+  "Default case-sensitivity for searches.
+Valid values are nil (case-sensitive), t (case-insensitive), `smart'
+(case-insensitive if the query is all lower case), and `inherit'
+(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
+  :type '(choice (const :tag "Case sensitive" nil)
+                 (const :tag "Smart case" 'smart)
+                 (const :tag "Inherit from `case-fold-search'" 'inherit)
+                 (const :tag "Case insensitive" t))
+  :group 'urgrep)
+
 (defcustom urgrep-context-lines 0
   "Number of lines of context to show.
 If this is an integer, show that many lines of context on either side.
@@ -154,6 +165,7 @@ If a cons, show CAR and CDR lines before and after, respectively."
      (case-fold-arguments (((pred identity) '("-i")))))
     ("grep"
      (executable-name "grep")
+     (regexp-syntax (bre ere pcre))
      (command-function ,#'urgrep--rgrep-command)
      (context-arguments ,urgrep--context-arguments)
      ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
@@ -262,29 +274,34 @@ for MS shells."
         (t expr)))
 
 (cl-defun urgrep-command (query &rest rest &key tool (group t) regexp-syntax
-                                (context 0))
-  (if-let ((tool (urgrep-get-tool tool))
-           (cmd-fun (urgrep-get-property tool 'command-function)))
-      (apply cmd-fun query :tool tool rest)
-    (let* ((tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
-           (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
-           (fold-case (and case-fold-search
-                           (isearch-no-upper-case-p query regexp-syntax)))
-           (executable (urgrep-get-property tool 'executable-name))
-           (pre-args (or (urgrep-get-property tool 'pre-arguments) '()))
-           (arguments (or (urgrep-get-property tool 'post-arguments) '())))
-      ;; Fill in various options according to the tool's argument syntax.
-      (dolist (i `((regexp-arguments    . ,tool-re-syntax)
-                   (case-fold-arguments . ,fold-case)
-                   (context-arguments   . ,context)
-                   (group-arguments     . ,group)))
-        (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i))))
-          (setq arguments (append args arguments))))
-      ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
-      ;; doesn't handle TRAMP right...
-      (mapconcat #'urgrep--maybe-shell-quote-argument
-                 (append `(,executable) pre-args arguments `(,query))
-                 " "))))
+                                (case-fold 'inherit) (context 0))
+  (let* ((tool (urgrep-get-tool tool))
+         (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
+         (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
+         (cmd-fun (urgrep-get-property tool 'command-function)))
+    ;; Determine whether to search case-sensitively or not.
+    (when (eq case-fold 'inherit)
+      (setq case-fold (if case-fold-search 'smart nil)))
+    (when (eq case-fold 'smart)
+      (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
+    ;; Build the command arguments.
+    (if cmd-fun
+        (apply cmd-fun query :tool tool :case-fold case-fold rest)
+      (let* ((executable (urgrep-get-property tool 'executable-name))
+             (pre-args (urgrep-get-property tool 'pre-arguments))
+             (arguments (urgrep-get-property tool 'post-arguments)))
+        ;; Fill in various options according to the tool's argument syntax.
+        (dolist (i `((regexp-arguments    . ,tool-re-syntax)
+                     (case-fold-arguments . ,case-fold)
+                     (context-arguments   . ,context)
+                     (group-arguments     . ,group)))
+          (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i))))
+            (setq arguments (append args arguments))))
+        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
+        ;; doesn't handle TRAMP right...
+        (mapconcat #'urgrep--maybe-shell-quote-argument
+                   (append `(,executable) pre-args arguments `(,query))
+                   " ")))))
 
 
 ;; urgrep-mode
@@ -591,6 +608,16 @@ future searches."
   (setq urgrep-search-regexp (not urgrep-search-regexp))
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
+(defun urgrep-toggle-case-fold ()
+  "Toggle whether or not to search case-sensitively.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
+  (interactive)
+  (message (if (setq urgrep-case-fold (if urgrep-case-fold nil 'always))
+               "case insensitive"
+             "case sensitive")))
+
 (defun urgrep--read-context (prompt)
   "Read the number of lines of context, prompting with PROMPT.
 If called with a prefix argument, use its numeric value instead of
@@ -637,17 +664,20 @@ future searches."
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
     (define-key map "\M-sr" #'urgrep-toggle-regexp)
+    (define-key map "\M-sc" #'urgrep-toggle-case-fold)
     (define-key map "\M-sC" #'urgrep-set-context)
     (define-key map "\M-sB" #'urgrep-set-before-context)
     (define-key map "\M-sA" #'urgrep-set-after-context)
     map))
 
 (cl-defun urgrep--read-query (initial &key (regexp urgrep-search-regexp)
+                                      (case-fold urgrep-case-fold)
                                       (context urgrep-context-lines))
   "Prompt the user for a search query.
 Return a list that can be passed to `urgrep-command' to turn into a shell
 command."
   (let* ((urgrep-search-regexp regexp)
+         (urgrep-case-fold case-fold)
          (urgrep-context-lines context)
          (default (and (not initial) (urgrep--search-default)))
          (prompt (urgrep--search-prompt default))
@@ -656,7 +686,7 @@ command."
                   (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :regexp urgrep-search-regexp
+    (list query :regexp urgrep-search-regexp :case-fold urgrep-case-fold
           :context urgrep-context-lines)))
 
 (defun urgrep--read-command (command)
@@ -666,11 +696,11 @@ command."
                           '(urgrep-command-history . 1)
                         'urgrep-command-history)))
 
-(cl-defun urgrep--to-command (query &key regexp context)
+(cl-defun urgrep--to-command (query &key regexp case-fold context)
   "Convert the result of `urgrep--read-query' to a shell command."
   (urgrep-command query :group urgrep-group-matches
                   :regexp-syntax (and regexp urgrep-regexp-syntax)
-                  :context context))
+                  :case-fold case-fold :context context))
 
 
 ;; User-facing functions (and supporting helpers)
@@ -699,6 +729,7 @@ The following keys are bound in `urgrep-minibuffer-map', active when
 entering the search query:
 
 Type \\[urgrep-toggle-regexp] to toggle regular-expression mode.
+Type \\[urgrep-toggle-case-fold] to toggle case-sensitive search.
 Type \\[urgrep-set-context] to set the number of context lines.
   With a numeric prefix argument, set the context to that many
   lines.  Without a prefix, prompt for the number.

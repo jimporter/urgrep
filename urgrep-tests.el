@@ -39,6 +39,14 @@
     (let ((case-fold-search nil))
       (should (equal (urgrep-command "foo" :tool tool)
                      (concat common-args "--heading -F -- foo"))))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
+                   (concat common-args "--heading -i -F -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
+                   (concat common-args "--heading -F -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--heading -i -F -- foo")))
+    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--heading -F -- Foo")))
     ;; Group
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "--no-heading -i -F -- foo")))
@@ -68,6 +76,14 @@
     (let ((case-fold-search nil))
       (should (equal (urgrep-command "foo" :tool tool)
                      (concat common-args "--group -s -Q -- foo"))))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
+                   (concat common-args "--group -i -Q -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
+                   (concat common-args "--group -s -Q -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--group -i -Q -- foo")))
+    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--group -s -Q -- Foo")))
     ;; Group
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "--nogroup -i -Q -- foo")))
@@ -97,6 +113,14 @@
     (let ((case-fold-search nil))
       (should (equal (urgrep-command "foo" :tool tool)
                      (concat common-args "--group -Q -- foo"))))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
+                   (concat common-args "--group -i -Q -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
+                   (concat common-args "--group -Q -- foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--group -i -Q -- foo")))
+    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--group -Q -- Foo")))
     ;; Group
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "--nogroup -i -Q -- foo")))
@@ -126,6 +150,14 @@
     (let ((case-fold-search nil))
       (should (equal (urgrep-command "foo" :tool tool)
                      (concat common-args "--heading --break -F -e foo"))))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
+                   (concat common-args "--heading --break -i -F -e foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
+                   (concat common-args "--heading --break -F -e foo")))
+    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--heading --break -i -F -e foo")))
+    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
+                   (concat common-args "--heading --break -F -e Foo")))
     ;; Group
     (should (equal (urgrep-command "foo" :tool tool :group nil)
                    (concat common-args "-i -F -e foo")))
@@ -154,6 +186,14 @@
     (let ((case-fold-search nil))
       (should (string-match "^find \\. .*grep -F .*foo"
                             (urgrep-command "foo" :tool tool))))
+    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+                          (urgrep-command "foo" :tool tool :case-fold t)))
+    (should (string-match "^find \\. .*grep -F .*foo"
+                          (urgrep-command "foo" :tool tool :case-fold nil)))
+    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+                          (urgrep-command "foo" :tool tool :case-fold 'smart)))
+    (should (string-match "^find \\. .*grep -F .*Foo"
+                          (urgrep-command "Foo" :tool tool :case-fold 'smart)))
     ;; Group
     (should (string-match "^find \\. .*grep -F .*-i .*foo"
                           (urgrep-command "foo" :tool tool :group nil)))
