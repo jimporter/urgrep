@@ -579,8 +579,12 @@ This function is called from `compilation-filter-hook'."
   "Start a urgrep process for COMMAND.
 QUERY is the original argument list that generated COMMAND (or it may
 be the same value as COMMAND). TOOL is the tool that was used to
-generate the command."
+generate the command. This sets `urgrep-current-query' and
+`urgrep-current-tool' buffer-locally so that they can be used when
+rerunning the search."
   (with-current-buffer
+      ;; Dynamically bind `urgrep-current-tool' so that `urgrep-process-filter'
+      ;; can consult it.
       (urgrep--with-killed-local-variable 'urgrep-current-tool
         (let ((urgrep-current-tool tool))
           (compilation-start command 'urgrep-mode)))
