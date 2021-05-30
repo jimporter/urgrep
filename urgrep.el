@@ -448,9 +448,9 @@ If EDIT-COMMAND is non-nil, the search can be edited."
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
-    (let ((match (text-property-search-backward 'urgrep-file-name)))
-      (buffer-substring (prop-match-beginning match)
-                        (prop-match-end match)))))
+    (if-let ((match (text-property-search-backward 'urgrep-file-name)))
+        (buffer-substring (prop-match-beginning match)
+                          (prop-match-end match)))))
 
 (defconst urgrep-regexp-alist
   ;; XXX: Try to rely on ANSI escapes as with the match highlight?
@@ -672,7 +672,7 @@ future searches."
     (define-key map "\M-sA" #'urgrep-set-after-context)
     map))
 
-(cl-defun urgrep--read-query (initial &key (group urgrep-group-matches)
+(cl-defun urgrep--read-query (initial &key tool (group urgrep-group-matches)
                                       (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
                                       (context urgrep-context-lines))
@@ -689,8 +689,9 @@ command."
                   (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :group group :regexp urgrep-search-regexp
-          :case-fold urgrep-case-fold :context urgrep-context-lines)))
+    (list query :tool (urgrep-get-tool tool) :group group
+          :regexp urgrep-search-regexp :case-fold urgrep-case-fold
+          :context urgrep-context-lines)))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
@@ -714,7 +715,7 @@ directory."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(cl-defun urgrep (query directory &rest rest &key commandp &allow-other-keys)
+(cl-defun urgrep (query directory &rest rest &allow-other-keys)
   "Recursively search in DIRECTORY for a given QUERY.
 
 When called interactively, search in the project's root directory, or
@@ -733,17 +734,28 @@ Type \\[urgrep-set-context] to set the number of context lines.
 Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines."
   (interactive
-   (list
-    ;; This will wrap the command in a list so that we can tell it's a real
-    ;; command, not just a query.
-    (urgrep--read-query nil)
-    (urgrep--read-directory current-prefix-arg)))
-  (let ((command (cond ((listp query) (apply #'urgrep-command query))
-                       (commandp query)
-                       (t (apply #'urgrep-command query rest))))
-        (default-directory (or directory default-directory)))
+   (list (urgrep--read-query nil)
+         (urgrep--read-directory current-prefix-arg)))
+  (let* ((query (if (listp query) query (cons query rest)))
+         (command (apply #'urgrep-command query))
+         (default-directory (or directory default-directory)))
     (with-current-buffer (compilation-start command 'urgrep-mode)
-      (setq urgrep-last-query (if (listp query) query command))
+      (setq urgrep-last-query query)
+      (current-buffer))))
+
+;;;###autoload
+(defun urgrep-run-command (command directory)
+  "Recursively search in DIRECTORY using the given COMMAND.
+
+When called interactively, this behaves like `urgrep', but allows you
+to edit the command before running it."
+  (interactive
+   (list (urgrep--read-command
+          (apply #'urgrep-command (urgrep--read-query nil)))
+         (urgrep--read-directory current-prefix-arg)))
+  (let ((default-directory (or directory default-directory)))
+    (with-current-buffer (compilation-start command 'urgrep-mode)
+      (setq urgrep-last-query command)
       (current-buffer))))
 
 (provide 'urgrep)

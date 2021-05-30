@@ -282,4 +282,13 @@
   (re-search-forward "urgrep-tests.el:")
   (urgrep-tests--check-match-at-point))
 
+(ert-deftest urgrep-tests-urgrep-run-command ()
+  (switch-to-buffer
+   (urgrep-run-command "ag --color-path 35 --color-match 1\\;31 urgrep" nil))
+  (sit-for 1)
+  (goto-char (point-min))
+  (re-search-forward "urgrep-tests.el")
+  (beginning-of-line 2)
+  (urgrep-tests--check-match-at-point))
+
 ;;; urgrep-tests.el ends here
