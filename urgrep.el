@@ -59,8 +59,8 @@
 (defcustom urgrep-case-fold 'inherit
   "Default case-sensitivity for searches.
 Valid values are nil (case-sensitive), t (case-insensitive), `smart'
-(case-insensitive if the query is all lower case), and `inherit'
-(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
+\(case-insensitive if the query is all lower case), and `inherit'
+\(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
   :type '(choice (const :tag "Case sensitive" nil)
                  (const :tag "Smart case" 'smart)
                  (const :tag "Inherit from `case-fold-search'" 'inherit)
@@ -93,8 +93,17 @@ If a cons, show CAR and CDR lines before and after, respectively."
 
 ;; Urgrep tools
 
+(defconst urgrep--context-arguments
+  '(((or '(0 . 0) 0) nil)
+    (`(,b . 0) (list (format "-B%d" b)))
+    (`(0 . ,a) (list (format "-A%d" a)))
+    ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
+    (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
+
 (cl-defun urgrep--rgrep-command (query &key tool regexp context
                                        &allow-other-keys)
+  "Get the command to run for QUERY when using rgrep.
+Optional keys TOOL, REGEXP, and CONTEXT are as in `urgrep-command'."
   (grep-compute-defaults)
   ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
   (let ((grep-find-template grep-find-template))
@@ -108,12 +117,16 @@ If a cons, show CAR and CDR lines before and after, respectively."
               (replace-match (concat args " <C>") t t grep-find-template))))
     (rgrep-default-command query "*" nil)))
 
-(defconst urgrep--context-arguments
-  '(((or '(0 . 0) 0) nil)
-    (`(,b . 0) (list (format "-B%d" b)))
-    (`(0 . ,a) (list (format "-A%d" a)))
-    ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
-    (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
+(defun urgrep--rgrep-process-setup ()
+  "Set up environment variables for rgrep.
+See also `grep-process-setup'."
+  ;; `setenv' modifies `process-environment' let-bound in `compilation-start'
+  ;; Any TERM except "dumb" allows GNU grep to use `--color=auto'.
+  (setenv "TERM" "emacs-urgrep")
+  ;; GREP_COLOR is used in GNU grep 2.5.1, but deprecated in later versions.
+  (setenv "GREP_COLOR" "01;31")
+  ;; GREP_COLORS is used in GNU grep 2.5.2 and later versions.
+  (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne"))
 
 (defvar urgrep-tools
   `(("ripgrep"
@@ -167,6 +180,7 @@ If a cons, show CAR and CDR lines before and after, respectively."
      (executable-name "grep")
      (regexp-syntax (bre ere pcre))
      (command-function ,#'urgrep--rgrep-command)
+     (process-setup ,#'urgrep--rgrep-process-setup)
      (context-arguments ,urgrep--context-arguments)
      ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
      ;; locale. Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
@@ -316,22 +330,23 @@ for MS shells."
 ;; number explicitly in the output.
 (defvar urgrep-first-column 0)
 
-(defvar-local urgrep-last-query nil
-  "The last search query run in this buffer.")
+(defvar-local urgrep-current-query nil
+  "The most recent search query run in this buffer.")
+(defvar-local urgrep-current-tool nil
+  "The most recent search tool used in this buffer.")
 
 (defun urgrep-search-again (&optional edit-command)
   "Re-run the previous search.
 If EDIT-COMMAND is non-nil, the search can be edited."
   (interactive "P")
-  (let* ((query (cond ((not edit-command) urgrep-last-query)
-                      ((listp urgrep-last-query)
-                       (apply #'urgrep--read-query urgrep-last-query))
-                      (t (urgrep--read-command urgrep-last-query))))
+  (let* ((query (cond ((not edit-command) urgrep-current-query)
+                      ((listp urgrep-current-query)
+                       (apply #'urgrep--read-query urgrep-current-query))
+                      (t (urgrep--read-command urgrep-current-query))))
          (command (if (listp query)
                       (apply #'urgrep-command query)
                     query)))
-    (with-current-buffer (compilation-start command 'urgrep-mode)
-      (setq urgrep-last-query query))))
+    (urgrep--start command query urgrep-current-tool)))
 
 (defvar urgrep-mode-map
   (let ((map (make-sparse-keymap)))
@@ -476,19 +491,15 @@ If EDIT-COMMAND is non-nil, the search can be edited."
 See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
-  ;; XXX: Abstract this grep-specific code out so other tools can do stuff like
-  ;; this.
-  ;; `setenv' modifies `process-environment' let-bound in `compilation-start'
-  ;; Any TERM except "dumb" allows GNU grep to use `--color=auto'.
-  (setenv "TERM" "emacs-urgrep")
-  ;; GREP_COLOR is used in GNU grep 2.5.1, but deprecated in later versions.
-  (setenv "GREP_COLOR" "01;31")
-  ;; GREP_COLORS is used in GNU grep 2.5.2 and later versions.
-  (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne")
+  "Set up compilation variables for urgrep."
+  (when-let ((tool-setup (urgrep-get-property urgrep-current-tool
+                                              'process-setup)))
+    (funcall tool-setup))
   (setq-local urgrep-num-matches-found 0
               compilation-exit-message-function 'urgrep-exit-message))
 
 (defun urgrep-exit-message (status code msg)
+  "Return a status message for urgrep results."
   (if (eq status 'exit)
       ;; This relies on the fact that `compilation-start'
       ;; sets buffer-modified to nil before running the command,
@@ -557,11 +568,33 @@ This function is called from `compilation-filter-hook'."
               compilation-error-screen-columns nil)
   (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
 
+(defmacro urgrep--with-killed-local-variable (variable &rest body)
+  "Execute the forms in BODY with VARIABLE temporarily non-local."
+  (declare (indent 1))
+  `(if (local-variable-p ,variable)
+       (with-temp-buffer ,@body)
+     ,@body))
+
+(defun urgrep--start (command query tool)
+  "Start a urgrep process for COMMAND.
+QUERY is the original argument list that generated COMMAND (or it may
+be the same value as COMMAND). TOOL is the tool that was used to
+generate the command."
+  (with-current-buffer
+      (urgrep--with-killed-local-variable 'urgrep-current-tool
+        (let ((urgrep-current-tool tool))
+          (compilation-start command 'urgrep-mode)))
+    (setq urgrep-current-query query
+          urgrep-current-tool tool)
+    (current-buffer)))
+
 
 ;; Minibuffer configuration
 
 (defvar urgrep-search-history nil "History list for urgrep search queries.")
 (defvar urgrep-command-history nil "History list for urgrep commands.")
+(defvar-local urgrep--search-default nil
+  "The default query for a urgrep search, used to update the prompt.")
 
 (defun urgrep--search-default ()
   "Return the default thing to search for.
@@ -676,9 +709,10 @@ future searches."
                                       (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
                                       (context urgrep-context-lines))
-  "Prompt the user for a search query.
+  "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into a shell
-command."
+command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
+`urgrep-command'."
   (let* ((urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
          (urgrep-context-lines context)
@@ -738,25 +772,24 @@ Type \\[urgrep-set-after-context] to set the number of after context lines."
          (urgrep--read-directory current-prefix-arg)))
   (let* ((query (if (listp query) query (cons query rest)))
          (command (apply #'urgrep-command query))
+         (tool (urgrep-get-tool (cadr (cl-member :tool query))))
          (default-directory (or directory default-directory)))
-    (with-current-buffer (compilation-start command 'urgrep-mode)
-      (setq urgrep-last-query query)
-      (current-buffer))))
+    (urgrep--start command query tool)))
 
 ;;;###autoload
-(defun urgrep-run-command (command directory)
+(defun urgrep-run-command (command directory tool)
   "Recursively search in DIRECTORY using the given COMMAND.
 
 When called interactively, this behaves like `urgrep', but allows you
 to edit the command before running it."
   (interactive
-   (list (urgrep--read-command
-          (apply #'urgrep-command (urgrep--read-query nil)))
-         (urgrep--read-directory current-prefix-arg)))
-  (let ((default-directory (or directory default-directory)))
-    (with-current-buffer (compilation-start command 'urgrep-mode)
-      (setq urgrep-last-query command)
-      (current-buffer))))
+   (let ((query (urgrep--read-query nil)))
+     (list (urgrep--read-command (apply #'urgrep-command query))
+           (urgrep--read-directory current-prefix-arg)
+           (cadr (cl-member :tool query)))))
+  (let ((tool (urgrep-get-tool tool))
+        (default-directory (or directory default-directory)))
+    (urgrep--start command command tool)))
 
 (provide 'urgrep)
 
