@@ -109,7 +109,11 @@
     (urgrep-test--check-command
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--"
-                           "foo")))))
+                           "foo")))
+    ;; Color
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :color nil)
+     (append '("rg" "--color" "never" "--heading" "-i" "-F" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-ag ()
   (let ((tool (assoc "ag" urgrep-tools))
@@ -172,7 +176,11 @@
     (urgrep-test--check-command
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
-                           "foo")))))
+                           "foo")))
+    ;; Color
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :color nil)
+     (append '("ag" "--nocolor" "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-ack ()
   (let ((tool (assoc "ack" urgrep-tools))
@@ -236,7 +244,11 @@
     (urgrep-test--check-command
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
-                           "foo")))))
+                           "foo")))
+    ;; Color
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :color nil)
+     (append '("ack" "--nocolor" "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-git-grep ()
   (let ((tool (assoc "git-grep" urgrep-tools))
@@ -300,57 +312,71 @@
      (append common-args group-args '("-i" "-F" "-e" "foo" "--" "*.el")))
     (urgrep-test--check-command
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-     (append common-args group-args '("-i" "-F" "-e" "foo" "--" "*.c" "*.h")))))
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--" "*.c" "*.h")))
+    ;; Color
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :color nil)
+     (append
+      '("git" "--no-pager" "grep" "--no-color" "-n" "--recurse-submodules")
+      group-args
+      '("-i" "-F" "-e" "foo" "--")))))
 
 (ert-deftest urgrep-tests-command-grep ()
   (let ((tool (assoc "grep" urgrep-tools)))
     ;; String/case
-    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
                           (urgrep-command "foo" :tool tool)))
-    (should (string-match "^find \\. .*grep -F .*Foo"
+    (should (string-match "^find \\. .*grep --color=always -F .*Foo"
                           (urgrep-command "Foo" :tool tool)))
     (let ((case-fold-search nil))
-      (should (string-match "^find \\. .*grep -F .*foo"
+      (should (string-match "^find \\. .*grep --color=always -F .*foo"
                             (urgrep-command "foo" :tool tool))))
-    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
                           (urgrep-command "foo" :tool tool :case-fold t)))
-    (should (string-match "^find \\. .*grep -F .*foo"
+    (should (string-match "^find \\. .*grep --color=always -F .*foo"
                           (urgrep-command "foo" :tool tool :case-fold nil)))
-    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
                           (urgrep-command "foo" :tool tool :case-fold 'smart)))
-    (should (string-match "^find \\. .*grep -F .*Foo"
+    (should (string-match "^find \\. .*grep --color=always -F .*Foo"
                           (urgrep-command "Foo" :tool tool :case-fold 'smart)))
     ;; Group
-    (should (string-match "^find \\. .*grep -F .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
                           (urgrep-command "foo" :tool tool :group nil)))
     ;; Regexp
     (let ((query (shell-quote-argument "(foo)")))
-      (should (string-match (concat "^find \\. .*grep -G .*-i .*" query)
-                            (urgrep-command "(foo)" :tool tool :regexp t)))
-      (should (string-match (concat "^find \\. .*grep -G .*-i .*" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'bre)))
-      (should (string-match (concat "^find \\. .*grep -E .*-i .*" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'ere)))
-      (should (string-match (concat "^find \\. .*grep -P .*-i .*" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
+      (should (string-match
+               (concat "^find \\. .*grep --color=always -i -G .*" query)
+               (urgrep-command "(foo)" :tool tool :regexp t)))
+      (should (string-match
+               (concat "^find \\. .*grep --color=always -i -G .*" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'bre)))
+      (should (string-match
+               (concat "^find \\. .*grep --color=always -i -E .*" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'ere)))
+      (should (string-match
+               (concat "^find \\. .*grep --color=always -i -P .*" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
     ;; Context
-    (should (string-match "^find \\. .*grep -F -C3 .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -C3 -i -F .*foo"
                           (urgrep-command "foo" :tool tool :context 3)))
-    (should (string-match "^find \\. .*grep -F -C3 .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -C3 -i -F .*foo"
                           (urgrep-command "foo" :tool tool :context '(3 . 3))))
-    (should (string-match "^find \\. .*grep -F -B2 -A4 .*-i .*foo"
+    (should (string-match "^find \\. .*grep --color=always -B2 -A4 -i -F .*foo"
                           (urgrep-command "foo" :tool tool :context '(2 . 4))))
     ;; File wildcard
     (let ((escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
       (should (string-match
                (concat "^find \\. .*-i?name " (funcall escape "*.el")
-                       " .*grep -F .*-i .*foo")
+                       " .*grep --color=always -i -F .*foo")
                (urgrep-command "foo" :tool tool :files "*.el")))
       (should (string-match
                (concat "^find \\. .*-i?name " (funcall escape "*.c")
                        " -o -i?name " (funcall escape "*.h")
-                       " .*grep -F .*-i .*foo")
-               (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))))
+                       " .*grep --color=always -i -F .*foo")
+               (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))
+    ;; Color
+    (should (string-match "^find \\. .*grep +-i -F .*foo"
+                          (urgrep-command "foo" :tool tool :color nil)))))
 
 (ert-deftest urgrep-tests-get-tool-default ()
   (cl-letf (((symbol-function #'executable-find) #'always))
