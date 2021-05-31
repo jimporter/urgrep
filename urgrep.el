@@ -194,7 +194,6 @@ See also `grep-process-setup'."
      (arguments (executable "--color" "always" "--colors" "path:fg:magenta"
                  "--colors" "match:fg:red" "--colors" "match:style:bold"
                  file-wildcards group context case-fold regexp "--" query))
-     (post-arguments ("--"))
      (group-arguments (('nil '("--no-heading"))
                        (_    '("--heading"))))
      (context-arguments ,urgrep--context-arguments)
