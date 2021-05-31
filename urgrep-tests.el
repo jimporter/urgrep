@@ -343,12 +343,13 @@
     ;; File wildcard
     (let ((escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
       (should (string-match
-               (concat "^find \\. .*-name " (funcall escape "*.el")
+               (concat "^find \\. .*-i?name " (funcall escape "*.el")
                        " .*grep -F .*-i .*foo")
                (urgrep-command "foo" :tool tool :files "*.el")))
       (should (string-match
-               (concat "^find \\. .*-name " (funcall escape "*.c") " -o -name "
-                       (funcall escape "*.h") " .*grep -F .*-i .*foo")
+               (concat "^find \\. .*-i?name " (funcall escape "*.c")
+                       " -o -i?name " (funcall escape "*.h")
+                       " .*grep -F .*-i .*foo")
                (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))))
 
 (ert-deftest urgrep-tests-get-tool-default ()
