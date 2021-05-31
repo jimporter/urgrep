@@ -15,16 +15,16 @@
 
 ;; This program is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-;; FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+;; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 ;; more details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;; A universal frontend to various grep-like tools. Currently, ripgrep, ag, ack,
-;; git-grep, and grep are supported.
+;; A universal frontend to various grep-like tools.  Currently, ripgrep, ag,
+;; ack, git-grep, and grep are supported.
 
 ;;; Code:
 
@@ -69,8 +69,9 @@ Valid values are nil (case-sensitive), t (case-insensitive), `smart'
 
 (defcustom urgrep-context-lines 0
   "Number of lines of context to show.
-If this is an integer, show that many lines of context on either side.
-If a cons, show CAR and CDR lines before and after, respectively."
+If this is an integer, show that many lines of context on either
+side.  If a cons, show CAR and CDR lines before and after,
+respectively."
   :type '(choice integer (cons integer integer))
   :group 'urgrep)
 
@@ -103,8 +104,9 @@ If a cons, show CAR and CDR lines before and after, respectively."
   (cond ((and (not (eq from-syntax to-syntax))
               (or (eq from-syntax 'bre) (eq to-syntax 'bre)))
          ;; XXX: This is a bit of a hack, but xref.el contains an internal
-         ;; function for converting between basic and extended regexps. It might
-         ;; be wise to use our own implementation, but this should work for now.
+         ;; function for converting between basic and extended regexps.  It
+         ;; might be wise to use our own implementation, but this should work
+         ;; for now.
          (require 'xref)
          (xref--regexp-to-extended expr))
         (t expr)))
@@ -117,7 +119,7 @@ If a cons, show CAR and CDR lines before and after, respectively."
       (substring string1 0 (1- (abs cmp))))))
 
 (defun urgrep--wildcard-to-regexp-hunk (wildcard syntax)
-  "Convert WILDCARD to a SYNTAX-style regexp.
+  "Convert WILDCARD to a SYNTAX style regexp.
 Unlike `wildcard-to-regexp', this excludes the begin/end specifiers,
 and escapes null characters."
   (if wildcard
@@ -127,7 +129,7 @@ and escapes null characters."
     ""))
 
 (defun urgrep--wildcards-to-regexp (wildcards syntax)
-  "Convert a list of WILDCARDS to a SYNTAX-style regexp."
+  "Convert a list of WILDCARDS to a SYNTAX style regexp."
   (let ((to-re (lambda (i) (urgrep--wildcard-to-regexp-hunk i syntax)))
         (wildcards (cl-remove-duplicates wildcards :test #'string=)))
     (if (<= (length wildcards) 1)
@@ -257,7 +259,7 @@ See also `grep-process-setup'."
      (process-setup ,#'urgrep--rgrep-process-setup)
      (context-arguments ,urgrep--context-arguments)
      ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
-     ;; locale. Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
+     ;; locale.  Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
      ;; is the right thing to do in general...
      (regexp-arguments (('bre  '("-G"))
                         ('ere  '("-E"))
@@ -315,7 +317,7 @@ This caches the default tool per-host in `urgrep--host-defaults'."
                          (string= vc-backend-name tool-vc-backend)))
             ;; So long as we didn't examine a VC-specific tool, we can cache
             ;; this result for future calls, since the result will always be the
-            ;; same. If we *did* see a VC-specific tool, this host will use
+            ;; same.  If we *did* see a VC-specific tool, this host will use
             ;; different tools for different directories, so we can't cache
             ;; anything.
             (unless saw-vc-tool-p
@@ -324,8 +326,8 @@ This caches the default tool per-host in `urgrep--host-defaults'."
 
 (defun urgrep-get-tool (&optional tool)
   "Get the urgrep tool for TOOL.
-If TOOL is nil, get the default tool. If TOOL is a string, look it
-up in `urgrep-tools'. Otherwise, return TOOL as-is."
+If TOOL is nil, get the default tool.  If TOOL is a string, look it up
+in `urgrep-tools'.  Otherwise, return TOOL as-is."
   (pcase tool
     ('nil (urgrep--get-default-tool))
     ((and (pred stringp) tool) (assoc tool urgrep-tools))
@@ -350,8 +352,32 @@ for MS shells."
           ((and (eq syntax 'pcre) (memq 'extended tool-syntaxes)) 'ere)
           (t (car tool-syntaxes)))))
 
+;;;###autoload
 (cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
                                 (case-fold 'inherit) (context 0) files)
+  "Return a command to use to search for QUERY.
+Several keyword arguments can be supplied to adjust the resulting
+command:
+
+TOOL: a tool from `urgrep-tools': a key-value pair from the list, just
+the key, or nil to use the default tool.
+
+GROUP: show results grouped by filename (t, the default), or if nil,
+prefix the filename on each result line.
+
+REGEXP: the style of regexp to use for results; one of nil (fixed
+strings), `bre' (basic regexp), `ere' (extend regexp), `pcre'
+\(Perl-compatible regexp), or t (the default regexp style stored in
+`urgrep-regexp-syntax').
+
+CASE-FOLD: determine whether QUERY is case-sensitive or not; possible
+values are as `urgrep-case-fold', defaulting to `inherit'.
+
+CONTEXT: the number of lines of context to show around results; either
+an integer (to show the same number of lines before and after) or a
+cons (to show CAR and CDR lines before and after, respectively).
+
+FILES: a wildcard (or list of wildcards) to limit the files searched."
   (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
          (files (if (listp files) files (list files)))
          (tool (urgrep-get-tool tool))
@@ -389,7 +415,7 @@ for MS shells."
 ;; urgrep-mode
 
 (defvar urgrep-num-matches-found 0
-  "Running total of matches found. This will be set buffer-locally.")
+  "Running total of matches found.  This will be set buffer-locally.")
 
 ;; Set the first column to 0 because that's how we currently count.
 ;; XXX: It might be worth changing this to 1 if we allow reading the column
@@ -637,8 +663,8 @@ This function is called from `compilation-filter-hook'."
 (defun urgrep--start (command query tool)
   "Start a urgrep process for COMMAND.
 QUERY is the original argument list that generated COMMAND (or it may
-be the same value as COMMAND). TOOL is the tool that was used to
-generate the command. This sets `urgrep-current-query' and
+be the same value as COMMAND).  TOOL is the tool that was used to
+generate the command.  This sets `urgrep-current-query' and
 `urgrep-current-tool' buffer-locally so that they can be used when
 rerunning the search."
   (with-current-buffer
@@ -661,7 +687,8 @@ rerunning the search."
 
 (defun urgrep--search-default ()
   "Return the default thing to search for.
-If the region is active, return that. Otherwise, return the symbol at point."
+If the region is active, return that.  Otherwise, return the symbol at
+point."
   (if (use-region-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
     (when-let ((symbol (symbol-at-point)))
@@ -669,8 +696,8 @@ If the region is active, return that. Otherwise, return the symbol at point."
 
 (defun urgrep--search-prompt (default)
   "Return the prompt to use when asking for the search query.
-This depends on the current values of various urgrep options. DEFAULT indicates
-the default query, if any."
+This depends on the current values of various urgrep options.  DEFAULT
+indicates the default query, if any."
   (concat "Search "
           (if urgrep-search-regexp "regexp" "string")
           (let ((block (append `(,#'pcase ',urgrep-context-lines)
@@ -789,7 +816,7 @@ future searches."
                                       (files urgrep-file-wildcards))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into a shell
-command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
+command.  TOOL, GROUP, REGEXP, CASE-FOLD, CONTEXT, and FILES are as in
 `urgrep-command'."
   (let* ((urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
@@ -818,8 +845,8 @@ command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
 
 (defun urgrep--read-directory (arg)
   "Get the directory to search in.
-If ARG is nil, return the project's root directory. If ARG's numeric
-value is 4, return the current directory. Otherwise, prompt for the
+If ARG is nil, return the project's root directory.  If ARG's numeric
+value is 4, return the current directory.  Otherwise, prompt for the
 directory."
   (cond
    ((not arg) (let ((proj (project-current)))
