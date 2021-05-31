@@ -51,9 +51,9 @@
 
 (defcustom urgrep-regexp-syntax 'bre
   "Default syntax to use for regexp searches."
-  :type '(choice (const :tag "Basic regexp" bre)
-                 (const :tag "Extended regexp" ere)
-                 (const :tag "Perl-compatible regexp" pcre))
+  :type '(radio (const :tag "Basic regexp" bre)
+                (const :tag "Extended regexp" ere)
+                (const :tag "Perl-compatible regexp" pcre))
   :group 'urgrep)
 
 (defcustom urgrep-case-fold 'inherit
@@ -61,10 +61,10 @@
 Valid values are nil (case-sensitive), t (case-insensitive), `smart'
 \(case-insensitive if the query is all lower case), and `inherit'
 \(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
-  :type '(choice (const :tag "Case sensitive" nil)
-                 (const :tag "Smart case" 'smart)
-                 (const :tag "Inherit from `case-fold-search'" 'inherit)
-                 (const :tag "Case insensitive" t))
+  :type '(radio (const :tag "Case sensitive" nil)
+                (const :tag "Smart case" 'smart)
+                (const :tag "Inherit from `case-fold-search'" 'inherit)
+                (const :tag "Case insensitive" t))
   :group 'urgrep)
 
 (defcustom urgrep-context-lines 0
@@ -72,6 +72,11 @@ Valid values are nil (case-sensitive), t (case-insensitive), `smart'
 If this is an integer, show that many lines of context on either side.
 If a cons, show CAR and CDR lines before and after, respectively."
   :type '(choice integer (cons integer integer))
+  :group 'urgrep)
+
+(defcustom urgrep-file-wildcards nil
+  "Zero or more wildcards to limit the files searched."
+  :type '(choice string (repeat string))
   :group 'urgrep)
 
 (defface urgrep-hit '((t :inherit compilation-info))
@@ -91,6 +96,62 @@ If a cons, show CAR and CDR lines before and after, respectively."
   :group 'urgrep)
 
 
+;; Urgrep utility functions
+
+(defun urgrep--convert-regexp (expr from-syntax to-syntax)
+  "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
+  (cond ((and (not (eq from-syntax to-syntax))
+              (or (eq from-syntax 'bre) (eq to-syntax 'bre)))
+         ;; XXX: This is a bit of a hack, but xref.el contains an internal
+         ;; function for converting between basic and extended regexps. It might
+         ;; be wise to use our own implementation, but this should work for now.
+         (require 'xref)
+         (xref--regexp-to-extended expr))
+        (t expr)))
+
+(defun urgrep--common-prefix (string1 string2)
+  "Get the common prefix shared by STRING1 and STRING2."
+  (let ((cmp (compare-strings string1 nil nil string2 nil nil)))
+    (if (eq cmp t)
+        string1
+      (substring string1 0 (1- (abs cmp))))))
+
+(defun urgrep--wildcard-to-regexp-hunk (wildcard syntax)
+  "Convert WILDCARD to a SYNTAX-style regexp.
+Unlike `wildcard-to-regexp', this excludes the begin/end specifiers,
+and escapes null characters."
+  (if wildcard
+      (let ((hunk (substring (wildcard-to-regexp wildcard) 2 -2)))
+        (urgrep--convert-regexp (replace-regexp-in-string "\0" "\\\\000" hunk)
+                                'bre syntax))
+    ""))
+
+(defun urgrep--wildcards-to-regexp (wildcards syntax)
+  "Convert a list of WILDCARDS to a SYNTAX-style regexp."
+  (let ((to-re (lambda (i) (urgrep--wildcard-to-regexp-hunk i syntax)))
+        (wildcards (cl-remove-duplicates wildcards :test #'string=)))
+    (if (<= (length wildcards) 1)
+        (concat "^" (funcall to-re (car wildcards)) "$")
+      (let* ((prefix (cl-reduce #'urgrep--common-prefix wildcards))
+             ;; Make sure our prefix doesn't contain an incomplete character
+             ;; class.
+             (prefix (car (split-string prefix "\\[")))
+             (start (length prefix))
+             (suffixes (if (eq start 0)
+                           wildcards
+                         (mapcar (lambda (i) (substring i start)) wildcards)))
+             (esc (if (eq syntax 'bre) "\\" nil)))
+        (concat "^" (funcall to-re prefix) esc "("
+                (mapconcat to-re suffixes (concat esc "|")) esc ")$")))))
+
+(defmacro urgrep--with-killed-local-variable (variable &rest body)
+  "Execute the forms in BODY with VARIABLE temporarily non-local."
+  (declare (indent 1))
+  `(if (local-variable-p ,variable)
+       (with-temp-buffer ,@body)
+     ,@body))
+
+
 ;; Urgrep tools
 
 (defconst urgrep--context-arguments
@@ -100,13 +161,14 @@ If a cons, show CAR and CDR lines before and after, respectively."
     ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
     (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
 
-(cl-defun urgrep--rgrep-command (query &key tool regexp context
+(cl-defun urgrep--rgrep-command (query &key tool regexp context files
                                        &allow-other-keys)
   "Get the command to run for QUERY when using rgrep.
-Optional keys TOOL, REGEXP, and CONTEXT are as in `urgrep-command'."
+Optional keys TOOL, REGEXP, CONTEXT, and FILES are as in `urgrep-command'."
   (grep-compute-defaults)
   ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
-  (let ((grep-find-template grep-find-template))
+  (let ((grep-find-template grep-find-template)
+        (files (if files (mapconcat #'identity files " ") "*")))
     (dolist (i `((regexp-arguments  . ,regexp)
                  (context-arguments . ,context)))
       (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i)))
@@ -115,7 +177,7 @@ Optional keys TOOL, REGEXP, and CONTEXT are as in `urgrep-command'."
                  ((string-match "<C>" grep-find-template)))
         (setq grep-find-template
               (replace-match (concat args " <C>") t t grep-find-template))))
-    (rgrep-default-command query "*" nil)))
+    (rgrep-default-command query files nil)))
 
 (defun urgrep--rgrep-process-setup ()
   "Set up environment variables for rgrep.
@@ -132,50 +194,62 @@ See also `grep-process-setup'."
   `(("ripgrep"
      (executable-name "rg")
      (regexp-syntax (pcre))
-     (pre-arguments ("--color" "always" "--colors" "path:fg:magenta"
-                     "--colors" "match:fg:red" "--colors" "match:style:bold"))
+     (arguments (executable "--color" "always" "--colors" "path:fg:magenta"
+                 "--colors" "match:fg:red" "--colors" "match:style:bold"
+                 file-wildcards group context case-fold regexp "--" query))
      (post-arguments ("--"))
      (group-arguments (('nil '("--no-heading"))
                        (_    '("--heading"))))
      (context-arguments ,urgrep--context-arguments)
      (regexp-arguments (('nil '("-F"))))
-     (case-fold-arguments (((pred identity) '("-i")))))
+     (case-fold-arguments (((pred identity) '("-i"))))
+     (file-wildcards-arguments
+      (((and x (pred identity))
+        (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))))
     ("ag"
      (executable-name "ag")
      (regexp-syntax (pcre))
-     (pre-arguments ("--color-path" "35" "--color-match" "1;31"))
-     (post-arguments ("--"))
+     (arguments (executable "--color-path" "35" "--color-match" "1;31"
+                 file-wildcards group context case-fold regexp "--" query))
      (group-arguments (('nil '("--nogroup"))
                        (_    '("--group"))))
      (context-arguments ,urgrep--context-arguments)
      (regexp-arguments (('nil '("-Q"))))
      (case-fold-arguments (('nil '("-s"))
-                           (_    '("-i")))))
+                           (_    '("-i"))))
+     (file-wildcards-arguments
+      (((and x (pred identity))
+        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
     ("ack"
      (executable-name "ack")
      (regexp-syntax (pcre))
-     (pre-arguments ("--color-filename" "magenta" "--color-match" "bold red"))
-     (post-arguments ("--"))
+     (arguments (executable "--color-filename" "magenta" "--color-match"
+                 "bold red" file-wildcards group context case-fold regexp "--"
+                 query))
      (group-arguments (('nil '("--nogroup"))
                        (_    '("--group"))))
      (context-arguments ,urgrep--context-arguments)
      (regexp-arguments (('nil '("-Q"))))
-     (case-fold-arguments (((pred identity) '("-i")))))
+     (case-fold-arguments (((pred identity) '("-i"))))
+     (file-wildcards-arguments
+      (((and x (pred identity))
+        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
     ("git-grep"
      (executable-name "git")
      (vc-backend "Git")
      (regexp-syntax (bre ere pcre))
-     (pre-arguments ("--no-pager" "-c" "color.grep.filename=magenta"
-                     "-c" "color.grep.match=bold red" "grep" "--color" "-n"
-                     "--recurse-submodules"))
-     (post-arguments ("-e"))
-     (group-arguments (('t '("--heading" "--break"))))
+     (arguments (executable "--no-pager" "-c" "color.grep.filename=magenta"
+                 "-c" "color.grep.match=bold red" "grep" "--color" "-n"
+                 "--recurse-submodules" group context case-fold regexp "-e"
+                 query "--" file-wildcards))
+     (group-arguments (((pred identity) '("--heading" "--break"))))
      (context-arguments ,urgrep--context-arguments)
      (regexp-arguments (('bre  '("-G"))
                         ('ere  '("-E"))
                         ('pcre '("-P"))
                         (_     '("-F"))))
-     (case-fold-arguments (((pred identity) '("-i")))))
+     (case-fold-arguments (((pred identity) '("-i"))))
+     (file-wildcards-arguments ((x x))))
     ("grep"
      (executable-name "grep")
      (regexp-syntax (bre ere pcre))
@@ -276,20 +350,10 @@ for MS shells."
           ((and (eq syntax 'pcre) (memq 'extended tool-syntaxes)) 'ere)
           (t (car tool-syntaxes)))))
 
-(defun urgrep--convert-regexp (expr from-syntax to-syntax)
-  "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
-  (cond ((and (not (eq from-syntax to-syntax))
-              (or (eq from-syntax 'bre) (eq to-syntax 'bre)))
-         ;; XXX: This is a bit of a hack, but xref.el contains an internal
-         ;; function for converting between basic and extended regexps. It might
-         ;; be wise to use our own implementation, but this should work for now.
-         (require 'xref)
-         (xref--regexp-to-extended expr))
-        (t expr)))
-
 (cl-defun urgrep-command (query &rest rest &key tool (group t) regexp
-                                (case-fold 'inherit) (context 0))
+                                (case-fold 'inherit) (context 0) files)
   (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
+         (files (if (listp files) files (list files)))
          (tool (urgrep-get-tool tool))
          (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
          (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
@@ -302,22 +366,24 @@ for MS shells."
     ;; Build the command arguments.
     (if cmd-fun
         (apply cmd-fun query :tool tool :regexp regexp-syntax
-               :case-fold case-fold rest)
+               :case-fold case-fold :files files rest)
       (let* ((executable (urgrep-get-property tool 'executable-name))
-             (pre-args (urgrep-get-property tool 'pre-arguments))
-             (arguments (urgrep-get-property tool 'post-arguments)))
+             (arguments (urgrep-get-property tool 'arguments)))
+        (setq arguments (cl-substitute executable 'executable arguments))
+        (setq arguments (cl-substitute query 'query arguments))
         ;; Fill in various options according to the tool's argument syntax.
-        (dolist (i `((regexp-arguments    . ,tool-re-syntax)
-                     (case-fold-arguments . ,case-fold)
-                     (context-arguments   . ,context)
-                     (group-arguments     . ,group)))
-          (when-let ((args (urgrep-get-property-pcase tool (car i) (cdr i))))
-            (setq arguments (append args arguments))))
+        (pcase-dolist (`(,k . ,v) `((regexp         . ,tool-re-syntax)
+                                    (case-fold      . ,case-fold)
+                                    (context        . ,context)
+                                    (group          . ,group)
+                                    (file-wildcards . ,files)))
+          (let* ((prop (intern (concat (symbol-name k) "-arguments")))
+                 (args (urgrep-get-property-pcase tool prop v)))
+            (setq arguments (cl-substitute args k arguments))))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
-        (mapconcat #'urgrep--maybe-shell-quote-argument
-                   (append `(,executable) pre-args arguments `(,query))
-                   " ")))))
+        (setq arguments (flatten-list arguments))
+        (mapconcat #'urgrep--maybe-shell-quote-argument arguments " ")))))
 
 
 ;; urgrep-mode
@@ -568,13 +634,6 @@ This function is called from `compilation-filter-hook'."
               compilation-error-screen-columns nil)
   (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
 
-(defmacro urgrep--with-killed-local-variable (variable &rest body)
-  "Execute the forms in BODY with VARIABLE temporarily non-local."
-  (declare (indent 1))
-  `(if (local-variable-p ,variable)
-       (with-temp-buffer ,@body)
-     ,@body))
-
 (defun urgrep--start (command query tool)
   "Start a urgrep process for COMMAND.
 QUERY is the original argument list that generated COMMAND (or it may
@@ -617,6 +676,8 @@ the default query, if any."
           (let ((block (append `(,#'pcase ',urgrep-context-lines)
                                urgrep--context-arguments)))
             (mapconcat (lambda (i) (concat " " i)) (eval block t) ""))
+          (when urgrep-file-wildcards
+            (format " in %s" (mapconcat #'identity urgrep-file-wildcards " ")))
           (when default
             (format " (default %s)" default))
           ": "))
@@ -699,6 +760,17 @@ future searches."
     (setq urgrep-context-lines (cons before-lines after-lines)))
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
+(defun urgrep-set-file-wildcards (files)
+  "Set the FILES (a wildcard or list thereof) to search.
+Within the `urgrep' search prompt, this sets the value only for the
+current search.  Outside the prompt, this sets the value for all
+future searches."
+  (interactive
+   (let ((enable-recursive-minibuffers t))
+                 (list (split-string (read-string "File wildcard: ")))))
+  (setq urgrep-file-wildcards files)
+  (when (window-minibuffer-p) (urgrep--update-search-prompt)))
+
 (defvar urgrep-minibuffer-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
@@ -707,12 +779,14 @@ future searches."
     (define-key map "\M-sC" #'urgrep-set-context)
     (define-key map "\M-sB" #'urgrep-set-before-context)
     (define-key map "\M-sA" #'urgrep-set-after-context)
+    (define-key map "\M-sf" #'urgrep-set-file-wildcards)
     map))
 
 (cl-defun urgrep--read-query (initial &key tool (group urgrep-group-matches)
                                       (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
-                                      (context urgrep-context-lines))
+                                      (context urgrep-context-lines)
+                                      (files urgrep-file-wildcards))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into a shell
 command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
@@ -720,6 +794,7 @@ command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
   (let* ((urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
          (urgrep-context-lines context)
+         (urgrep-file-wildcards files)
          (default (and (not initial) (urgrep--search-default)))
          (prompt (urgrep--search-prompt default))
          (query (minibuffer-with-setup-hook
@@ -729,7 +804,7 @@ command. TOOL, GROUP, REGEXP, CASE-FOLD, and CONTEXT are as in
          (query (if (equal query "") default query)))
     (list query :tool (urgrep-get-tool tool) :group group
           :regexp urgrep-search-regexp :case-fold urgrep-case-fold
-          :context urgrep-context-lines)))
+          :context urgrep-context-lines :files urgrep-file-wildcards)))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
@@ -770,7 +845,8 @@ Type \\[urgrep-set-context] to set the number of context lines.
   With a numeric prefix argument, set the context to that many
   lines.  Without a prefix, prompt for the number.
 Type \\[urgrep-set-before-context] to set the number of before context lines.
-Type \\[urgrep-set-after-context] to set the number of after context lines."
+Type \\[urgrep-set-after-context] to set the number of after context lines.
+Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searched."
   (interactive
    (list (urgrep--read-query nil)
          (urgrep--read-directory current-prefix-arg)))
