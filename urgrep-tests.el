@@ -43,192 +43,264 @@
   (should (equal (urgrep--wildcards-to-regexp '("*.[ab]cpp" "*.[ab]c") 'pcre)
                  "^[^\\000]*\\.([ab]cpp|[ab]c)$")))
 
+(defun urgrep-test--check-command (command expected-arguments)
+  (should (string= command (mapconcat #'urgrep--maybe-shell-quote-argument
+                                      expected-arguments " "))))
+
 (ert-deftest urgrep-tests-command-ripgrep ()
   (let ((tool (assoc "ripgrep" urgrep-tools))
-        (common-args (concat "rg --color always --colors path\\:fg\\:magenta "
-                             "--colors match\\:fg\\:red "
-                             "--colors match\\:style\\:bold ")))
+        (common-args '("rg" "--color" "always" "--colors" "path:fg:magenta"
+                       "--colors" "match:fg:red" "--colors"
+                       "match:style:bold")))
     ;; String/case
-    (should (equal (urgrep-command "foo" :tool tool)
-                   (concat common-args "--heading -i -F -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool)
-                   (concat common-args "--heading -F -- Foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool)
+     (append common-args '("--heading" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool)
+     (append common-args '("--heading" "-F" "--" "Foo")))
     (let ((case-fold-search nil))
-      (should (equal (urgrep-command "foo" :tool tool)
-                     (concat common-args "--heading -F -- foo"))))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
-                   (concat common-args "--heading -i -F -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
-                   (concat common-args "--heading -F -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--heading -i -F -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--heading -F -- Foo")))
+      (urgrep-test--check-command
+       (urgrep-command "foo" :tool tool)
+       (append common-args '("--heading" "-F" "--" "foo"))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold t)
+     (append common-args '("--heading" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold nil)
+     (append common-args '("--heading" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold 'smart)
+     (append common-args '("--heading" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool :case-fold 'smart)
+     (append common-args '("--heading" "-F" "--" "Foo")))
     ;; Group
-    (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   (concat common-args "--no-heading -i -F -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :group nil)
+     (append common-args '("--no-heading" "-i" "-F" "--" "foo")))
     ;; Regexp
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'bre)
-                   (concat common-args "--heading -i -- \\\\\\(foo\\\\\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'ere)
-                   (concat common-args "--heading -i -- \\(foo\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-                   (concat common-args "--heading -i -- \\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp t)
+     (append common-args '("--heading" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'bre)
+     (append common-args '("--heading" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'ere)
+     (append common-args '("--heading" "-i" "--" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'pcre)
+     (append common-args '("--heading" "-i" "--" "(foo)")))
     ;; Context
-    (should (equal (urgrep-command "foo" :tool tool :context 3)
-                   (concat common-args "--heading -C3 -i -F -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(3 . 3))
-                   (concat common-args "--heading -C3 -i -F -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(2 . 4))
-                   (concat common-args "--heading -B2 -A4 -i -F -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context 3)
+     (append common-args '("--heading" "-C3" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(3 . 3))
+     (append common-args '("--heading" "-C3" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(2 . 4))
+     (append common-args '("--heading" "-B2" "-A4" "-i" "-F" "--" "foo")))
     ;; File wildcard
-    (should (equal (urgrep-command "foo" :tool tool :files "*.el")
-                   (concat common-args "-g \\*.el --heading -i -F -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-                   (concat common-args "-g \\*.c -g \\*.h --heading -i -F -- "
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files "*.el")
+     (append common-args '("-g" "*.el" "--heading" "-i" "-F" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
+     (append common-args '("-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--"
                            "foo")))))
 
 (ert-deftest urgrep-tests-command-ag ()
   (let ((tool (assoc "ag" urgrep-tools))
-        (common-args "ag --color-path 35 --color-match 1\\;31 "))
+        (common-args '("ag" "--color-path" "35" "--color-match" "1;31")))
     ;; String/case
-    (should (equal (urgrep-command "foo" :tool tool)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool)
-                   (concat common-args "--group -s -Q -- Foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool)
+     (append common-args '("--group" "-s" "-Q" "--" "Foo")))
     (let ((case-fold-search nil))
-      (should (equal (urgrep-command "foo" :tool tool)
-                     (concat common-args "--group -s -Q -- foo"))))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
-                   (concat common-args "--group -s -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--group -s -Q -- Foo")))
+      (urgrep-test--check-command
+       (urgrep-command "foo" :tool tool)
+       (append common-args '("--group" "-s" "-Q" "--" "foo"))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold t)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold nil)
+     (append common-args '("--group" "-s" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold 'smart)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool :case-fold 'smart)
+     (append common-args '("--group" "-s" "-Q" "--" "Foo")))
     ;; Group
-    (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   (concat common-args "--nogroup -i -Q -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :group nil)
+     (append common-args '("--nogroup" "-i" "-Q" "--" "foo")))
     ;; Regexp
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp t)
-                   (concat common-args "--group -i -- \\\\\\(foo\\\\\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'bre)
-                   (concat common-args "--group -i -- \\\\\\(foo\\\\\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'ere)
-                   (concat common-args "--group -i -- \\(foo\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-                   (concat common-args "--group -i -- \\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp t)
+     (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'bre)
+     (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'ere)
+     (append common-args '("--group" "-i" "--" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'pcre)
+     (append common-args '("--group" "-i" "--" "(foo)")))
     ;; Context
-    (should (equal (urgrep-command "foo" :tool tool :context 3)
-                   (concat common-args "--group -C3 -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(3 . 3))
-                   (concat common-args "--group -C3 -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(2 . 4))
-                   (concat common-args "--group -B2 -A4 -i -Q -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context 3)
+     (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(3 . 3))
+     (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(2 . 4))
+     (append common-args '("--group" "-B2" "-A4" "-i" "-Q" "--" "foo")))
     ;; File wildcard
-    (should (equal (urgrep-command "foo" :tool tool :files "*.el")
-                   (concat common-args "-G \\^\\[\\^\\\\000\\]\\*\\\\.el\\$ "
-                           "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-                   (concat common-args
-                           "-G \\^\\[\\^\\\\000\\]\\*\\\\.\\(c\\|h\\)\\$ "
-                           "--group -i -Q -- foo")))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files "*.el")
+     (append common-args '("-G" "^[^\\000]*\\.el$" "--group" "-i" "-Q" "--"
+                           "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
+     (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
+                           "foo")))))
 
 (ert-deftest urgrep-tests-command-ack ()
   (let ((tool (assoc "ack" urgrep-tools))
-        (common-args "ack --color-filename magenta --color-match bold\\ red "))
+        (common-args '("ack" "--color-filename" "magenta" "--color-match"
+                       "bold red")))
     ;; String/case
-    (should (equal (urgrep-command "foo" :tool tool)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool)
-                   (concat common-args "--group -Q -- Foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool)
+     (append common-args '("--group" "-Q" "--" "Foo")))
     (let ((case-fold-search nil))
-      (should (equal (urgrep-command "foo" :tool tool)
-                     (concat common-args "--group -Q -- foo"))))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
-                   (concat common-args "--group -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
-                   (concat common-args "--group -Q -- Foo")))
+      (urgrep-test--check-command
+       (urgrep-command "foo" :tool tool)
+       (append common-args '("--group" "-Q" "--" "foo"))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold t)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold nil)
+     (append common-args '("--group" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold 'smart)
+     (append common-args '("--group" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool :case-fold 'smart)
+     (append common-args '("--group" "-Q" "--" "Foo")))
     ;; Group
-    (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   (concat common-args "--nogroup -i -Q -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :group nil)
+     (append common-args '("--nogroup" "-i" "-Q" "--" "foo")))
     ;; Regexp
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp t)
-                   (concat common-args "--group -i -- \\\\\\(foo\\\\\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'bre)
-                   (concat common-args "--group -i -- \\\\\\(foo\\\\\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'ere)
-                   (concat common-args "--group -i -- \\(foo\\)")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-                   (concat common-args "--group -i -- \\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp t)
+     (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'bre)
+     (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'ere)
+     (append common-args '("--group" "-i" "--" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'pcre)
+     (append common-args '("--group" "-i" "--" "(foo)")))
     ;; Context
-    (should (equal (urgrep-command "foo" :tool tool :context 3)
-                   (concat common-args "--group -C3 -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(3 . 3))
-                   (concat common-args "--group -C3 -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(2 . 4))
-                   (concat common-args "--group -B2 -A4 -i -Q -- foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context 3)
+     (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(3 . 3))
+     (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(2 . 4))
+     (append common-args '("--group" "-B2" "-A4" "-i" "-Q" "--" "foo")))
     ;; File wildcard
-    (should (equal (urgrep-command "foo" :tool tool :files "*.el")
-                   (concat common-args "-G \\^\\[\\^\\\\000\\]\\*\\\\.el\\$ "
-                           "--group -i -Q -- foo")))
-    (should (equal (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-                   (concat common-args
-                           "-G \\^\\[\\^\\\\000\\]\\*\\\\.\\(c\\|h\\)\\$ "
-                           "--group -i -Q -- foo")))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files "*.el")
+     (append common-args '("-G" "^[^\\000]*\\.el$" "--group" "-i" "-Q" "--"
+                           "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
+     (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
+                           "foo")))))
 
 (ert-deftest urgrep-tests-command-git-grep ()
   (let ((tool (assoc "git-grep" urgrep-tools))
-        (common-args (concat "git --no-pager -c color.grep.filename\\=magenta "
-                             "-c color.grep.match\\=bold\\ red grep --color -n "
-                             "--recurse-submodules "))
-        (group-args "--heading --break "))
+        (common-args '("git" "--no-pager" "-c" "color.grep.filename=magenta"
+                       "-c" "color.grep.match=bold red" "grep" "--color" "-n"
+                       "--recurse-submodules"))
+        (group-args '("--heading" "--break")))
     ;; String/case
-    (should (equal (urgrep-command "foo" :tool tool)
-                   (concat common-args group-args "-i -F -e foo --")))
-    (should (equal (urgrep-command "Foo" :tool tool)
-                   (concat common-args group-args "-F -e Foo --")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool)
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool)
+     (append common-args group-args '("-F" "-e" "Foo" "--")))
     (let ((case-fold-search nil))
-      (should (equal (urgrep-command "foo" :tool tool)
-                     (concat common-args group-args "-F -e foo --"))))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold t)
-                   (concat common-args group-args "-i -F -e foo --")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold nil)
-                   (concat common-args group-args "-F -e foo --")))
-    (should (equal (urgrep-command "foo" :tool tool :case-fold 'smart)
-                   (concat common-args group-args "-i -F -e foo --")))
-    (should (equal (urgrep-command "Foo" :tool tool :case-fold 'smart)
-                   (concat common-args group-args "-F -e Foo --")))
+      (urgrep-test--check-command
+       (urgrep-command "foo" :tool tool)
+       (append common-args group-args '("-F" "-e" "foo" "--"))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold t)
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold nil)
+     (append common-args group-args '("-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold 'smart)
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool :case-fold 'smart)
+     (append common-args group-args '("-F" "-e" "Foo" "--")))
     ;; Group
-    (should (equal (urgrep-command "foo" :tool tool :group nil)
-                   (concat common-args "-i -F -e foo --")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :group nil)
+     (append common-args '("-i" "-F" "-e" "foo" "--")))
     ;; Regexp
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp t)
-                   (concat common-args group-args "-i -G -e \\(foo\\) --")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'bre)
-                   (concat common-args group-args "-i -G -e \\(foo\\) --")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'ere)
-                   (concat common-args group-args "-i -E -e \\(foo\\) --")))
-    (should (equal (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-                   (concat common-args group-args "-i -P -e \\(foo\\) --")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp t)
+     (append common-args group-args '("-i" "-G" "-e" "(foo)" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'bre)
+     (append common-args group-args '("-i" "-G" "-e" "(foo)" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'ere)
+     (append common-args group-args '("-i" "-E" "-e" "(foo)" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'pcre)
+     (append common-args group-args '("-i" "-P" "-e" "(foo)" "--")))
     ;; Context
-    (should (equal (urgrep-command "foo" :tool tool :context 3)
-                   (concat common-args group-args "-C3 -i -F -e foo --")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(3 . 3))
-                   (concat common-args group-args "-C3 -i -F -e foo --")))
-    (should (equal (urgrep-command "foo" :tool tool :context '(2 . 4))
-                   (concat common-args group-args "-B2 -A4 -i -F -e foo --")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context 3)
+     (append common-args group-args '("-C3" "-i" "-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(3 . 3))
+     (append common-args group-args '("-C3" "-i" "-F" "-e" "foo" "--")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(2 . 4))
+     (append common-args group-args '("-B2" "-A4" "-i" "-F" "-e" "foo" "--")))
     ;; File wildcard
-    (should (equal (urgrep-command "foo" :tool tool :files "*.el")
-                   (concat common-args group-args "-i -F -e foo -- \\*.el")))
-    (should (equal (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-                   (concat common-args group-args "-i -F -e foo -- \\*.c "
-                           "\\*.h")))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files "*.el")
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--" "*.el")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--" "*.c" "*.h")))))
 
 (ert-deftest urgrep-tests-command-grep ()
   (let ((tool (assoc "grep" urgrep-tools)))
@@ -252,14 +324,15 @@
     (should (string-match "^find \\. .*grep -F .*-i .*foo"
                           (urgrep-command "foo" :tool tool :group nil)))
     ;; Regexp
-    (should (string-match "^find \\. .*grep -G .*-i .*\\\\(foo\\\\)"
-                          (urgrep-command "(foo)" :tool tool :regexp t)))
-    (should (string-match "^find \\. .*grep -G .*-i .*\\\\(foo\\\\)"
-                          (urgrep-command "(foo)" :tool tool :regexp 'bre)))
-    (should (string-match "^find \\. .*grep -E .*-i .*\\\\(foo\\\\)"
-                          (urgrep-command "(foo)" :tool tool :regexp 'ere)))
-    (should (string-match "^find \\. .*grep -P .*-i .*\\\\(foo\\\\)"
-                          (urgrep-command "(foo)" :tool tool :regexp 'pcre)))
+    (let ((query (shell-quote-argument "(foo)")))
+      (should (string-match (concat "^find \\. .*grep -G .*-i .*" query)
+                            (urgrep-command "(foo)" :tool tool :regexp t)))
+      (should (string-match (concat "^find \\. .*grep -G .*-i .*" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'bre)))
+      (should (string-match (concat "^find \\. .*grep -E .*-i .*" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'ere)))
+      (should (string-match (concat "^find \\. .*grep -P .*-i .*" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
     ;; Context
     (should (string-match "^find \\. .*grep -F -C3 .*-i .*foo"
                           (urgrep-command "foo" :tool tool :context 3)))
@@ -268,12 +341,15 @@
     (should (string-match "^find \\. .*grep -F -B2 -A4 .*-i .*foo"
                           (urgrep-command "foo" :tool tool :context '(2 . 4))))
     ;; File wildcard
-    (should (string-match "^find \\. .*-name \\\\\\*\\.el .*grep -F .*-i .*foo"
-                          (urgrep-command "foo" :tool tool :files "*.el")))
-    (should (string-match (concat "^find \\. .*-name \\\\\\*\\.c -o "
-                                  "-name \\\\\\*\\.h .*grep -F .*-i .*foo")
-                          (urgrep-command "foo" :tool tool
-                                          :files '("*.c" "*.h"))))))
+    (let ((escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
+      (should (string-match
+               (concat "^find \\. .*-name " (funcall escape "*.el")
+                       " .*grep -F .*-i .*foo")
+               (urgrep-command "foo" :tool tool :files "*.el")))
+      (should (string-match
+               (concat "^find \\. .*-name " (funcall escape "*.c") " -o -name "
+                       (funcall escape "*.h") " .*grep -F .*-i .*foo")
+               (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))))
 
 (ert-deftest urgrep-tests-get-tool-default ()
   (cl-letf (((symbol-function #'executable-find) #'always))
