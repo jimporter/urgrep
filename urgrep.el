@@ -62,8 +62,8 @@ Valid values are nil (case-sensitive), t (case-insensitive), `smart'
 \(case-insensitive if the query is all lower case), and `inherit'
 \(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
   :type '(radio (const :tag "Case sensitive" nil)
-                (const :tag "Smart case" 'smart)
-                (const :tag "Inherit from `case-fold-search'" 'inherit)
+                (const :tag "Smart case" smart)
+                (const :tag "Inherit from `case-fold-search'" inherit)
                 (const :tag "Case insensitive" t))
   :group 'urgrep)
 
@@ -73,11 +73,6 @@ If this is an integer, show that many lines of context on either
 side.  If a cons, show CAR and CDR lines before and after,
 respectively."
   :type '(choice integer (cons integer integer))
-  :group 'urgrep)
-
-(defcustom urgrep-file-wildcards nil
-  "Zero or more wildcards to limit the files searched."
-  :type '(choice string (repeat string))
   :group 'urgrep)
 
 (defface urgrep-hit '((t :inherit compilation-info))
@@ -414,18 +409,19 @@ FILES: a wildcard (or list of wildcards) to limit the files searched."
 
 ;; urgrep-mode
 
+(defvar urgrep-file-wildcards nil
+  "Zero or more wildcards to limit the files searched.")
 (defvar urgrep-num-matches-found 0
   "Running total of matches found.  This will be set buffer-locally.")
+(defvar-local urgrep-current-query nil
+  "The most recent search query run in this buffer.")
+(defvar-local urgrep-current-tool nil
+  "The most recent search tool used in this buffer.")
 
 ;; Set the first column to 0 because that's how we currently count.
 ;; XXX: It might be worth changing this to 1 if we allow reading the column
 ;; number explicitly in the output.
 (defvar urgrep-first-column 0)
-
-(defvar-local urgrep-current-query nil
-  "The most recent search query run in this buffer.")
-(defvar-local urgrep-current-tool nil
-  "The most recent search tool used in this buffer.")
 
 (defun urgrep-search-again (&optional edit-command)
   "Re-run the previous search.
