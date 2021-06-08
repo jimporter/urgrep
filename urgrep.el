@@ -23,8 +23,9 @@
 
 ;;; Commentary:
 
-;; A universal frontend to various grep-like tools.  Currently, ripgrep, ag,
-;; ack, git-grep, and grep are supported.
+;; A universal frontend to various grep-like tools. Currently, ripgrep, ag, ack,
+;; git-grep, and grep are supported. The primary entry point to this package is
+;; the interactive function `urgrep' (which see).
 
 ;;; Code:
 
@@ -819,10 +820,10 @@ future searches."
     (set-keymap-parent map minibuffer-local-map)
     (define-key map "\M-sr" #'urgrep-toggle-regexp)
     (define-key map "\M-sc" #'urgrep-toggle-case-fold)
+    (define-key map "\M-sf" #'urgrep-set-file-wildcards)
     (define-key map "\M-sC" #'urgrep-set-context)
     (define-key map "\M-sB" #'urgrep-set-before-context)
     (define-key map "\M-sA" #'urgrep-set-after-context)
-    (define-key map "\M-sf" #'urgrep-set-file-wildcards)
     map))
 
 (cl-defun urgrep--read-query (initial &key tool (group urgrep-group-matches)
