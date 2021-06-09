@@ -92,6 +92,14 @@ respectively."
   "Face for context lines."
   :group 'urgrep)
 
+;;;###autoload
+(defcustom urgrep-setup-hook nil
+  "List of hook functions run by `urgrep-process-setup' (see `run-hooks').
+The currently-used tool can be inspected from the hook via
+`urgrep-current-tool'."
+  :type 'hook
+  :group 'grep)
+
 
 ;; Urgrep utility functions
 
@@ -599,11 +607,12 @@ If EDIT-COMMAND is non-nil, the search can be edited."
 See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
-  "Set up compilation variables for urgrep."
+  "Set up compilation variables for urgrep and run `urgrep-setup-hook'."
   (when-let ((tool-setup (urgrep--get-prop 'process-setup urgrep-current-tool)))
     (funcall tool-setup))
   (setq-local urgrep-num-matches-found 0
-              compilation-exit-message-function 'urgrep-exit-message))
+              compilation-exit-message-function 'urgrep-exit-message)
+  (run-hooks 'urgrep-setup-hook))
 
 (defun urgrep-exit-message (status code msg)
   "Return a status message for urgrep results."
