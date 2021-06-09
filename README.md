@@ -5,7 +5,7 @@ grep-like tool, as an alternative to the built-in `M-x rgrep` (and other similar
 packages). Currently, `ripgrep`, `ag`, `ack`, `git grep`, and `grep`/`find` are
 supported.
 
-## Features
+## Why Urgrep?
 
 #### One package, many tools
 
