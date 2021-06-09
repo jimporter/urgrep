@@ -48,7 +48,7 @@
                                       expected-arguments " "))))
 
 (ert-deftest urgrep-tests-command-ripgrep ()
-  (let ((tool (assoc "ripgrep" urgrep-tools))
+  (let ((tool (assq 'ripgrep urgrep-tools))
         (common-args '("rg" "--color" "always" "--colors" "path:fg:magenta"
                        "--colors" "match:fg:red" "--colors"
                        "match:style:bold")))
@@ -116,7 +116,7 @@
      (append '("rg" "--color" "never" "--heading" "-i" "-F" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-ag ()
-  (let ((tool (assoc "ag" urgrep-tools))
+  (let ((tool (assq 'ag urgrep-tools))
         (common-args '("ag" "--color-path" "35" "--color-match" "1;31")))
     ;; String/case
     (urgrep-test--check-command
@@ -183,7 +183,7 @@
      (append '("ag" "--nocolor" "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-ack ()
-  (let ((tool (assoc "ack" urgrep-tools))
+  (let ((tool (assq 'ack urgrep-tools))
         (common-args '("ack" "--color-filename" "magenta" "--color-match"
                        "bold red")))
     ;; String/case
@@ -251,7 +251,7 @@
      (append '("ack" "--nocolor" "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests-command-git-grep ()
-  (let ((tool (assoc "git-grep" urgrep-tools))
+  (let ((tool (assq 'git-grep urgrep-tools))
         (common-args '("git" "--no-pager" "-c" "color.grep.filename=magenta"
                        "-c" "color.grep.match=bold red" "grep" "--color" "-n"
                        "--recurse-submodules"))
@@ -322,7 +322,7 @@
       '("-i" "-F" "-e" "foo" "--")))))
 
 (ert-deftest urgrep-tests-command-grep ()
-  (let ((tool (assoc "grep" urgrep-tools)))
+  (let ((tool (assq 'grep urgrep-tools)))
     ;; String/case
     (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
                           (urgrep-command "foo" :tool tool)))
@@ -380,35 +380,44 @@
 
 (ert-deftest urgrep-tests-get-tool-default ()
   (cl-letf (((symbol-function #'executable-find) #'always))
-    (let* ((urgrep--host-defaults '())
+    (let* ((urgrep--host-defaults)
            (tool (urgrep-get-tool)))
-      (should (equal (car tool) "ripgrep"))
-      (should (equal (urgrep-get-property tool 'executable-name) "rg"))
-      (should (equal urgrep--host-defaults '((localhost . "ripgrep")))))))
+      (should (equal (car tool) 'ripgrep))
+      (should (equal (urgrep--get-prop 'executable-name tool) "rg"))
+      (should (equal urgrep--host-defaults '((localhost . ripgrep)))))))
 
 (ert-deftest urgrep-tests-get-tool-default-cached ()
   (cl-letf (((symbol-function #'executable-find) #'always))
-    (let* ((urgrep--host-defaults '((localhost . "ag")))
+    (let* ((urgrep--host-defaults '((localhost . ag)))
            (tool (urgrep-get-tool)))
-      (should (equal (car tool) "ag"))
-      (should (equal (urgrep-get-property tool 'executable-name) "ag"))
-      (should (equal urgrep--host-defaults '((localhost . "ag")))))))
+      (should (equal (car tool) 'ag))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ag"))
+      (should (equal urgrep--host-defaults '((localhost . ag)))))))
 
-(ert-deftest urgrep-tests-get-tool-string ()
+(ert-deftest urgrep-tests-get-tool-preferred ()
   (cl-letf (((symbol-function #'executable-find) #'always))
-    (let* ((urgrep--host-defaults '())
-           (tool (urgrep-get-tool "ag")))
-      (should (equal (car tool) "ag"))
-      (should (equal (urgrep-get-property tool 'executable-name) "ag"))
-      (should (equal urgrep--host-defaults '())))))
+    (let* ((urgrep--host-defaults)
+           (urgrep-preferred-tools '(ag grep))
+           (tool (urgrep-get-tool)))
+      (should (equal (car tool) 'ag))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ag"))
+      (should (equal urgrep--host-defaults '((localhost . ag)))))))
+
+(ert-deftest urgrep-tests-get-tool-key ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults)
+           (tool (urgrep-get-tool 'ag)))
+      (should (equal (car tool) 'ag))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ag"))
+      (should (equal urgrep--host-defaults nil)))))
 
 (ert-deftest urgrep-tests-get-tool-cons ()
   (cl-letf (((symbol-function #'executable-find) #'always))
-    (let* ((urgrep--host-defaults '())
-           (tool (urgrep-get-tool '("goofy" (executable-name "gf")))))
-      (should (equal (car tool) "goofy"))
-      (should (equal (urgrep-get-property tool 'executable-name) "gf"))
-      (should (equal urgrep--host-defaults '())))))
+    (let* ((urgrep--host-defaults)
+           (tool (urgrep-get-tool '(goofy (executable-name "gf")))))
+      (should (equal (car tool) 'goofy))
+      (should (equal (urgrep--get-prop 'executable-name tool) "gf"))
+      (should (equal urgrep--host-defaults nil)))))
 
 (defun urgrep-tests--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))

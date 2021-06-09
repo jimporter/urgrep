@@ -172,7 +172,7 @@ as in `urgrep-command'."
     (pcase-dolist (`(,k . ,v) `((regexp-arguments    . ,regexp)
                                 (case-fold-arguments . ,case-fold)
                                 (context-arguments   . ,context)))
-      (when-let ((args (urgrep-get-property-pcase tool k v))
+      (when-let ((args (urgrep--get-prop-pcase k tool v))
                  (args (mapconcat #'urgrep--maybe-shell-quote-argument args
                                   " "))
                  ((string-match "<C>" grep-find-template)))
@@ -193,7 +193,7 @@ See also `grep-process-setup'."
   (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne"))
 
 (defvar urgrep-tools
-  `(("ripgrep"
+  `((ripgrep
      (executable-name "rg")
      (regexp-syntax (pcre))
      (arguments (executable color file-wildcards group context case-fold regexp
@@ -210,7 +210,7 @@ See also `grep-process-setup'."
      (file-wildcards-arguments
       (((and x (pred identity))
         (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))))
-    ("ag"
+    (ag
      (executable-name "ag")
      (regexp-syntax (pcre))
      (arguments (executable color file-wildcards group context case-fold regexp
@@ -226,7 +226,7 @@ See also `grep-process-setup'."
      (file-wildcards-arguments
       (((and x (pred identity))
         (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
-    ("ack"
+    (ack
      (executable-name "ack")
      (regexp-syntax (pcre))
      (arguments (executable color file-wildcards group context case-fold regexp
@@ -242,7 +242,7 @@ See also `grep-process-setup'."
      (file-wildcards-arguments
       (((and x (pred identity))
         (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
-    ("git-grep"
+    (git-grep
      (executable-name "git")
      (vc-backend "Git")
      (regexp-syntax (bre ere pcre))
@@ -263,7 +263,7 @@ See also `grep-process-setup'."
                         (_     '("-F"))))
      (case-fold-arguments (((pred identity) '("-i"))))
      (file-wildcards-arguments ((x x))))
-    ("grep"
+    (grep
      (executable-name "grep")
      (regexp-syntax (bre ere pcre))
      (command-function ,#'urgrep--rgrep-command)
@@ -294,14 +294,13 @@ or a list of tool names to try in descending order of preference."
 This is an alist of host symbols (`localhost' or a TRAMP host) and
 the default tool to use on that host.")
 
-(defun urgrep-get-property (tool prop)
+(defun urgrep--get-prop (prop tool)
   "Get the property PROP from TOOL, or nil if PROP is undefined."
-  (when-let ((prop-entry (assoc prop (cdr tool))))
-    (cadr prop-entry)))
+  (cadr (assq prop (cdr tool))))
 
-(defun urgrep-get-property-pcase (tool prop value)
+(defun urgrep--get-prop-pcase (prop tool value)
   "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE."
-  (when-let ((cases (urgrep-get-property tool prop))
+  (when-let ((cases (urgrep--get-prop prop tool))
              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
 
@@ -310,13 +309,13 @@ the default tool to use on that host.")
 This caches the default tool per-host in `urgrep--host-defaults'."
   (if-let ((host-id (intern (or (file-remote-p default-directory) "localhost")))
            (cached-tool-name (alist-get host-id urgrep--host-defaults)))
-      (assoc cached-tool-name urgrep-tools)
+      (assq cached-tool-name urgrep-tools)
     (let ((vc-backend-name)
           (saw-vc-tool-p nil))
       (cl-dolist (tool (or urgrep-preferred-tools urgrep-tools))
-        (let* ((tool (if (stringp tool) (assoc tool urgrep-tools) tool))
-               (tool-executable (urgrep-get-property tool 'executable-name))
-               (tool-vc-backend (urgrep-get-property tool 'vc-backend)))
+        (let* ((tool (if (symbolp tool) (assq tool urgrep-tools) tool))
+               (tool-executable (urgrep--get-prop 'executable-name tool))
+               (tool-vc-backend (urgrep--get-prop 'vc-backend tool)))
           (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
           ;; Cache the VC backend name if we need it.
           (when-let (((and tool-vc-backend (not vc-backend-name)))
@@ -342,7 +341,7 @@ If TOOL is nil, get the default tool.  If TOOL is a string, look it up
 in `urgrep-tools'.  Otherwise, return TOOL as-is."
   (pcase tool
     ('nil (urgrep--get-default-tool))
-    ((and (pred stringp) tool) (assoc tool urgrep-tools))
+    ((and (pred symbolp) tool) (assq tool urgrep-tools))
     (tool tool)))
 
 (defun urgrep--maybe-shell-quote-argument (argument)
@@ -357,7 +356,7 @@ for MS shells."
 
 (defun urgrep--get-best-syntax (syntax tool)
   "Return the regexp syntax closest to SYNTAX that TOOL supports."
-  (let ((tool-syntaxes (urgrep-get-property tool 'regexp-syntax)))
+  (let ((tool-syntaxes (urgrep--get-prop 'regexp-syntax tool)))
     (cond ((not syntax) nil)
           ((memq syntax tool-syntaxes) syntax)
           ((and (eq syntax 'ere) (memq 'pcre tool-syntaxes)) 'pcre)
@@ -397,7 +396,7 @@ COLOR: non-nil (the default) if the output should use color."
          (tool (urgrep-get-tool tool))
          (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
          (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
-         (cmd-fun (urgrep-get-property tool 'command-function)))
+         (cmd-fun (urgrep--get-prop 'command-function tool)))
     ;; Determine whether to search case-sensitively or not.
     (when (eq case-fold 'inherit)
       (setq case-fold (if case-fold-search 'smart nil)))
@@ -408,8 +407,8 @@ COLOR: non-nil (the default) if the output should use color."
         (funcall cmd-fun query :tool tool :regexp regexp-syntax
                  :case-fold case-fold :context context :files files
                  :color color)
-      (let* ((executable (urgrep-get-property tool 'executable-name))
-             (arguments (urgrep-get-property tool 'arguments)))
+      (let* ((executable (urgrep--get-prop 'executable-name tool))
+             (arguments (urgrep--get-prop 'arguments tool)))
         (setq arguments (cl-substitute executable 'executable arguments))
         (setq arguments (cl-substitute query 'query arguments))
         ;; Fill in various options according to the tool's argument syntax.
@@ -420,7 +419,7 @@ COLOR: non-nil (the default) if the output should use color."
                                     (file-wildcards . ,files)
                                     (color          . ,color)))
           (let* ((prop (intern (concat (symbol-name k) "-arguments")))
-                 (args (urgrep-get-property-pcase tool prop v)))
+                 (args (urgrep--get-prop-pcase prop tool v)))
             (setq arguments (cl-substitute args k arguments))))
         ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
         ;; doesn't handle TRAMP right...
@@ -601,8 +600,7 @@ See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
   "Set up compilation variables for urgrep."
-  (when-let ((tool-setup (urgrep-get-property urgrep-current-tool
-                                              'process-setup)))
+  (when-let ((tool-setup (urgrep--get-prop 'process-setup urgrep-current-tool)))
     (funcall tool-setup))
   (setq-local urgrep-num-matches-found 0
               compilation-exit-message-function 'urgrep-exit-message))

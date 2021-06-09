@@ -55,14 +55,14 @@ To improve performance, you can restrict the set of tools to search for by
 setting `urgrep-preferred-tools`:
 
 ```elisp
-(setq urgrep-preferred-tools '("git-grep" "grep"))
+(setq urgrep-preferred-tools '(git-grep grep))
 ```
 
 This also works with connection-local variables:
 
 ```elisp
 (connection-local-set-profile-variables 'urgrep-ripgrep
- '((urgrep-preferred-tools . ("ripgrep"))))
+ '((urgrep-preferred-tools . (ripgrep))))
 
 (connection-local-set-profiles
  '(:application tramp :machine "coco") 'urgrep-ripgrep)
