@@ -923,5 +923,4 @@ to edit the command before running it."
     (urgrep--start command command tool)))
 
 (provide 'urgrep)
-
 ;;; urgrep.el ends here

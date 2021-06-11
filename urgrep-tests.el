@@ -1,4 +1,4 @@
-;;; urgrep-test.el --- Tests for urgrep -*- lexical-binding: t -*-
+;;; urgrep-tests.el --- Tests for urgrep -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2021 Jim Porter
 
