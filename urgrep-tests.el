@@ -414,7 +414,7 @@
 (ert-deftest urgrep-tests-get-tool-cons ()
   (cl-letf (((symbol-function #'executable-find) #'always))
     (let* ((urgrep--host-defaults)
-           (tool (urgrep-get-tool '(goofy (executable-name "gf")))))
+           (tool (urgrep-get-tool '(goofy (executable-name . "gf")))))
       (should (equal (car tool) 'goofy))
       (should (equal (urgrep--get-prop 'executable-name tool) "gf"))
       (should (equal urgrep--host-defaults nil)))))

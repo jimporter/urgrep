@@ -202,89 +202,88 @@ See also `grep-process-setup'."
 
 (defvar urgrep-tools
   `((ripgrep
-     (executable-name "rg")
-     (regexp-syntax (pcre))
-     (arguments (executable color file-wildcards group context case-fold regexp
-                            "--" query))
-     (color-arguments (('nil '("--color" "never"))
-                       (_    '("--color" "always" "--colors" "path:fg:magenta"
-                               "--colors" "match:fg:red" "--colors"
-                               "match:style:bold"))))
-     (group-arguments (('nil '("--no-heading"))
-                       (_    '("--heading"))))
-     (context-arguments ,urgrep--context-arguments)
-     (regexp-arguments (('nil '("-F"))))
-     (case-fold-arguments (((pred identity) '("-i"))))
+     (executable-name . "rg")
+     (regexp-syntax pcre)
+     (arguments executable color file-wildcards group context case-fold regexp
+                "--" query)
+     (color-arguments ('nil '("--color" "never"))
+                      (_    '("--color" "always" "--colors" "path:fg:magenta"
+                              "--colors" "match:fg:red" "--colors"
+                              "match:style:bold")))
+     (group-arguments ('nil '("--no-heading"))
+                      (_    '("--heading")))
+     (context-arguments . ,urgrep--context-arguments)
+     (regexp-arguments ('nil '("-F")))
+     (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
-      (((and x (pred identity))
-        (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))))
+      ((and x (pred identity))
+       (flatten-list (mapcar (lambda (i) (cons "-g" i)) x)))))
     (ag
-     (executable-name "ag")
-     (regexp-syntax (pcre))
-     (arguments (executable color file-wildcards group context case-fold regexp
-                            "--" query))
-     (color-arguments (('nil '("--nocolor"))
-                       (_    '("--color-path" "35" "--color-match" "1;31"))))
-     (group-arguments (('nil '("--nogroup"))
-                       (_    '("--group"))))
-     (context-arguments ,urgrep--context-arguments)
-     (regexp-arguments (('nil '("-Q"))))
-     (case-fold-arguments (('nil '("-s"))
-                           (_    '("-i"))))
+     (executable-name . "ag")
+     (regexp-syntax pcre)
+     (arguments executable color file-wildcards group context case-fold regexp
+                "--" query)
+     (color-arguments ('nil '("--nocolor"))
+                      (_    '("--color-path" "35" "--color-match" "1;31")))
+     (group-arguments ('nil '("--nogroup"))
+                      (_    '("--group")))
+     (context-arguments . ,urgrep--context-arguments)
+     (regexp-arguments ('nil '("-Q")))
+     (case-fold-arguments ('nil '("-s"))
+                          (_    '("-i")))
      (file-wildcards-arguments
-      (((and x (pred identity))
-        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
+      ((and x (pred identity))
+       (list "-G" (urgrep--wildcards-to-regexp x 'pcre)))))
     (ack
-     (executable-name "ack")
-     (regexp-syntax (pcre))
-     (arguments (executable color file-wildcards group context case-fold regexp
-                            "--" query))
-     (color-arguments (('nil '("--nocolor"))
-                       (_    '("--color-filename" "magenta" "--color-match"
-                               "bold red"))))
-     (group-arguments (('nil '("--nogroup"))
-                       (_    '("--group"))))
-     (context-arguments ,urgrep--context-arguments)
-     (regexp-arguments (('nil '("-Q"))))
-     (case-fold-arguments (((pred identity) '("-i"))))
+     (executable-name . "ack")
+     (regexp-syntax pcre)
+     (arguments executable color file-wildcards group context case-fold regexp
+                "--" query)
+     (color-arguments ('nil '("--nocolor"))
+                      (_    '("--color-filename" "magenta" "--color-match"
+                              "bold red")))
+     (group-arguments ('nil '("--nogroup"))
+                      (_    '("--group")))
+     (context-arguments . ,urgrep--context-arguments)
+     (regexp-arguments ('nil '("-Q")))
+     (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
-      (((and x (pred identity))
-        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))))
+      ((and x (pred identity))
+       (list "-G" (urgrep--wildcards-to-regexp x 'pcre)))))
     (git-grep
-     (executable-name "git")
-     (vc-backend "Git")
-     (regexp-syntax (bre ere pcre))
-     (arguments (executable "--no-pager" color "-n" "--recurse-submodules" group
-                            context case-fold regexp "-e" query "--"
-                            file-wildcards))
+     (executable-name . "git")
+     (vc-backend . "Git")
+     (regexp-syntax bre ere pcre)
+     (arguments executable "--no-pager" color "-n" "--recurse-submodules" group
+                context case-fold regexp "-e" query "--" file-wildcards)
      ;; git is a bit odd in that color specification happens *before* the
      ;; subcommand and turning colors on/off happens *after*, so
      ;; `color-arguments' needs to include the subcommand "grep".
-     (color-arguments (('nil '("grep" "--no-color"))
-                       (_    '("-c" "color.grep.filename=magenta" "-c"
-                               "color.grep.match=bold red" "grep" "--color"))))
-     (group-arguments (((pred identity) '("--heading" "--break"))))
-     (context-arguments ,urgrep--context-arguments)
-     (regexp-arguments (('bre  '("-G"))
-                        ('ere  '("-E"))
-                        ('pcre '("-P"))
-                        (_     '("-F"))))
-     (case-fold-arguments (((pred identity) '("-i"))))
-     (file-wildcards-arguments ((x x))))
+     (color-arguments ('nil '("grep" "--no-color"))
+                      (_    '("-c" "color.grep.filename=magenta" "-c"
+                              "color.grep.match=bold red" "grep" "--color")))
+     (group-arguments ((pred identity) '("--heading" "--break")))
+     (context-arguments . ,urgrep--context-arguments)
+     (regexp-arguments ('bre  '("-G"))
+                       ('ere  '("-E"))
+                       ('pcre '("-P"))
+                       (_     '("-F")))
+     (case-fold-arguments ((pred identity) '("-i")))
+     (file-wildcards-arguments (x x)))
     (grep
-     (executable-name "grep")
-     (regexp-syntax (bre ere pcre))
-     (command-function ,#'urgrep--rgrep-command)
-     (process-setup ,#'urgrep--rgrep-process-setup)
-     (context-arguments ,urgrep--context-arguments)
+     (executable-name . "grep")
+     (regexp-syntax bre ere pcre)
+     (command-function . ,#'urgrep--rgrep-command)
+     (process-setup . ,#'urgrep--rgrep-process-setup)
+     (context-arguments . ,urgrep--context-arguments)
      ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
      ;; locale.  Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
      ;; is the right thing to do in general...
-     (regexp-arguments (('bre  '("-G"))
-                        ('ere  '("-E"))
-                        ('pcre '("-P"))
-                        (_     '("-F"))))
-     (case-fold-arguments (((pred identity) '("-i"))))))
+     (regexp-arguments ('bre  '("-G"))
+                       ('ere  '("-E"))
+                       ('pcre '("-P"))
+                       (_     '("-F")))
+     (case-fold-arguments ((pred identity) '("-i")))))
   "An alist of known tools to try when running urgrep.")
 
 (defcustom urgrep-preferred-tools nil
@@ -304,7 +303,7 @@ the default tool to use on that host.")
 
 (defun urgrep--get-prop (prop tool)
   "Get the property PROP from TOOL, or nil if PROP is undefined."
-  (cadr (assq prop (cdr tool))))
+  (alist-get prop (cdr tool)))
 
 (defun urgrep--get-prop-pcase (prop tool value)
   "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE."
