@@ -557,6 +557,12 @@ If EDIT-COMMAND is non-nil, the search can be edited."
      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
           '(face nil abbreviated-command t))))))
 
+(defvar urgrep--column-end-adjustment
+  (if (< emacs-major-version 28) 0 1)
+  "In Emacs 28+, the column range for matches is closed, but in previous
+versions, it's half-open.  Use this to adjust the value as needed in
+`urgrep--column-end'.")
+
 (defun urgrep--column-begin ()
   "Look forwards for the match highlight to compute the beginning column."
   (let* ((beg (match-end 0))
@@ -573,7 +579,7 @@ If EDIT-COMMAND is non-nil, the search can be edited."
          (mend (and mbeg (next-single-property-change mbeg 'font-lock-face nil
                                                       end))))
     (when mend
-      (- mend beg))))
+      (- mend beg urgrep--column-end-adjustment))))
 
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
