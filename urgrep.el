@@ -904,8 +904,8 @@ Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines.
 Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searched."
   (interactive
-   (list (urgrep--read-query nil)
-         (urgrep--read-directory current-prefix-arg)))
+   (let ((directory (urgrep--read-directory current-prefix-arg)))
+     (list (urgrep--read-query nil) directory)))
   (let* ((query (if (listp query) query (cons query rest)))
          (command (apply #'urgrep-command query))
          (tool (urgrep-get-tool (cadr (cl-member :tool query))))
@@ -919,10 +919,10 @@ Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searche
 When called interactively, this behaves like `urgrep', but allows you
 to edit the command before running it."
   (interactive
-   (let ((query (urgrep--read-query nil)))
+   (let ((directory (urgrep--read-directory current-prefix-arg))
+         (query (urgrep--read-query nil)))
      (list (urgrep--read-command (apply #'urgrep-command query))
-           (urgrep--read-directory current-prefix-arg)
-           (cadr (cl-member :tool query)))))
+           directory (cadr (cl-member :tool query)))))
   (let ((tool (urgrep-get-tool tool))
         (default-directory (or directory default-directory)))
     (urgrep--start command command tool)))
