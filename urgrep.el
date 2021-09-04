@@ -92,7 +92,6 @@ respectively."
   "Face for context lines."
   :group 'urgrep)
 
-;;;###autoload
 (defcustom urgrep-setup-hook nil
   "List of hook functions run by `urgrep-process-setup' (see `run-hooks').
 The currently-used tool can be inspected from the hook via
