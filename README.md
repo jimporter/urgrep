@@ -58,6 +58,13 @@ setting `urgrep-preferred-tools`:
 (setq urgrep-preferred-tools '(git-grep grep))
 ```
 
+If a tool is installed in an unusual place on your system, you can specify this
+by providing a cons cell as an element in `urgrep-preferred-tools':
+
+```elisp
+(setq urgrep-preferred-tools '((ag . "/home/coco/bin/ag")))
+```
+
 This also works with connection-local variables:
 
 ```elisp
@@ -65,7 +72,7 @@ This also works with connection-local variables:
  '((urgrep-preferred-tools . (ripgrep))))
 
 (connection-local-set-profiles
- '(:application tramp :machine "coco") 'urgrep-ripgrep)
+ '(:application tramp :machine "imagewriter") 'urgrep-ripgrep)
 ```
 
 ## Programmatic interface

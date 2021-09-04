@@ -31,6 +31,7 @@
 
 (require 'cl-lib)
 (require 'compile)
+(require 'generator)
 (require 'grep)
 (require 'project)
 (require 'text-property-search)
@@ -288,12 +289,19 @@ See also `grep-process-setup'."
 (defcustom urgrep-preferred-tools nil
   "List of urgrep tools to search for.
 This can be nil to use the default list of tools in `urgrep-tools'
-or a list of tool names to try in descending order of preference."
-  :type `(choice (const :tag "Default" nil)
-                 (repeat :tag "List of tools"
-                         (choice . ,(mapcar (lambda (i) (list 'const (car i)))
-                                            urgrep-tools))))
-  :group 'urgrep)
+or a list of tools to try in descending order of preference.  Each tool
+can be either a symbol naming the tool or a cons cell of the tool name
+and the path of the executable."
+  :type `(choice
+          (const :tag "Default" nil)
+          (repeat :tag "List of tools"
+                  ,(let* ((tool-names (mapcar (lambda (i) `(const ,(car i)))
+                                              urgrep-tools))
+                          (tool-choice `(choice :tag "Tool" . ,tool-names)))
+                     (append tool-choice
+                             `((cons :tag "(tool . path)"
+                                     ,tool-choice (string :tag "Path")))))))
+    :group 'urgrep)
 
 (defvar urgrep--host-defaults nil
   "Default urgrep values for each known host.
@@ -310,36 +318,54 @@ the default tool to use on that host.")
              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
 
+(iter-defun urgrep--iter-tools ()
+  "Iterate over all the grep-like tools.
+If `urgrep-preferred-tools' is non-nil, iterate over them, yielding
+each tool, possibly modified with the executable path defined in
+`urgrep-preferred-tools.'  Otherwise, iterate over `urgrep-tools'."
+  (if urgrep-preferred-tools
+      (dolist (pref urgrep-preferred-tools)
+        (pcase-let* ((`(,name . ,path) (if (consp pref) pref (cons pref nil)))
+                     (tool (assq name urgrep-tools))
+                     (tool (if path
+                               `(,(car tool) .
+                                 ((executable-name . ,path) . ,(cdr tool)))
+                             tool)))
+          (iter-yield tool)))
+    (dolist (tool urgrep-tools)
+      (iter-yield tool))))
+
 (defun urgrep--get-default-tool ()
   "Get the preferred urgrep tool from `urgrep-tools'.
 This caches the default tool per-host in `urgrep--host-defaults'."
   (if-let ((host-id (intern (or (file-remote-p default-directory) "localhost")))
-           (cached-tool-name (alist-get host-id urgrep--host-defaults)))
-      (assq cached-tool-name urgrep-tools)
+           (cached-tool (alist-get host-id urgrep--host-defaults)))
+      cached-tool
     (let ((vc-backend-name)
           (saw-vc-tool-p nil))
-      (cl-dolist (tool (or urgrep-preferred-tools urgrep-tools))
-        (let* ((tool (if (symbolp tool) (assq tool urgrep-tools) tool))
-               (tool-executable (urgrep--get-prop 'executable-name tool))
-               (tool-vc-backend (urgrep--get-prop 'vc-backend tool)))
-          (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
-          ;; Cache the VC backend name if we need it.
-          (when-let (((and tool-vc-backend (not vc-backend-name)))
-                     (proj (project-current)))
-            (setq vc-backend-name (vc-responsible-backend (project-root proj))))
-          ;; If we find the executable (and it's for the right VC backend, if
-          ;; relevant), cache it and then return it.
-          (when (and (executable-find tool-executable t)
-                     (or (not tool-vc-backend)
-                         (string= vc-backend-name tool-vc-backend)))
-            ;; So long as we didn't examine a VC-specific tool, we can cache
-            ;; this result for future calls, since the result will always be the
-            ;; same.  If we *did* see a VC-specific tool, this host will use
-            ;; different tools for different directories, so we can't cache
-            ;; anything.
-            (unless saw-vc-tool-p
-              (add-to-list 'urgrep--host-defaults (cons host-id (car tool))))
-            (cl-return tool)))))))
+      (cl-loop for tool iter-by (urgrep--iter-tools) do
+               (let ((tool-executable (urgrep--get-prop 'executable-name tool))
+                     (tool-vc-backend (urgrep--get-prop 'vc-backend tool)))
+                 (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
+                 ;; Cache the VC backend name if we need it.
+                 (when-let (((and tool-vc-backend (not vc-backend-name)))
+                            (proj (project-current)))
+                   (setq vc-backend-name (vc-responsible-backend
+                                          (project-root proj))))
+                 ;; If we find the executable (and it's for the right VC
+                 ;; backend, if relevant), cache it and then return it.
+                 (when (and (executable-find tool-executable t)
+                            (or (not tool-vc-backend)
+                                (string= vc-backend-name tool-vc-backend)))
+                   ;; So long as we didn't examine a VC-specific tool, we can
+                   ;; cache this result for future calls, since the result will
+                   ;; always be the same.  If we *did* see a VC-specific tool,
+                   ;; this host will use different tools for different
+                   ;; directories, so we can't cache anything.
+                   (unless saw-vc-tool-p
+                     (add-to-list 'urgrep--host-defaults
+                                  (cons host-id tool)))
+                   (cl-return tool)))))))
 
 (defun urgrep-get-tool (&optional tool)
   "Get the urgrep tool for TOOL.
@@ -558,9 +584,11 @@ If EDIT-COMMAND is non-nil, the search can be edited."
 
 (defvar urgrep--column-end-adjustment
   (if (< emacs-major-version 28) 0 1)
-  "In Emacs 28+, the column range for matches is closed, but in previous
+  "Handle core Emacs changes to the column range for `compile-mode' matches.
+In Emacs 28+, the column range for matches is closed, but in previous
 versions, it's half-open.  Use this to adjust the value as needed in
-`urgrep--column-end'.")
+`urgrep--column-end'.  For more details on the change, see
+<https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49624>.")
 
 (defun urgrep--column-begin ()
   "Look forwards for the match highlight to compute the beginning column."

@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'ert)
+
 (unless (fboundp 'always)
   (defun always (&rest _) t))
 
@@ -384,15 +385,16 @@
            (tool (urgrep-get-tool)))
       (should (equal (car tool) 'ripgrep))
       (should (equal (urgrep--get-prop 'executable-name tool) "rg"))
-      (should (equal urgrep--host-defaults '((localhost . ripgrep)))))))
+      (should (equal urgrep--host-defaults `((localhost . ,tool)))))))
 
 (ert-deftest urgrep-tests-get-tool-default-cached ()
   (cl-letf (((symbol-function #'executable-find) #'always))
-    (let* ((urgrep--host-defaults '((localhost . ag)))
+    (let* ((ag (assq 'ag urgrep-tools))
+           (urgrep--host-defaults `((localhost . ,ag)))
            (tool (urgrep-get-tool)))
       (should (equal (car tool) 'ag))
       (should (equal (urgrep--get-prop 'executable-name tool) "ag"))
-      (should (equal urgrep--host-defaults '((localhost . ag)))))))
+      (should (equal urgrep--host-defaults `((localhost . ,ag)))))))
 
 (ert-deftest urgrep-tests-get-tool-preferred ()
   (cl-letf (((symbol-function #'executable-find) #'always))
@@ -401,7 +403,16 @@
            (tool (urgrep-get-tool)))
       (should (equal (car tool) 'ag))
       (should (equal (urgrep--get-prop 'executable-name tool) "ag"))
-      (should (equal urgrep--host-defaults '((localhost . ag)))))))
+      (should (equal urgrep--host-defaults `((localhost . ,tool)))))))
+
+(ert-deftest urgrep-tests-get-tool-preferred-cons ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--host-defaults)
+           (urgrep-preferred-tools '((ag . "/usr/bin/ag")))
+           (tool (urgrep-get-tool)))
+      (should (equal (car tool) 'ag))
+      (should (equal (urgrep--get-prop 'executable-name tool) "/usr/bin/ag"))
+      (should (equal urgrep--host-defaults `((localhost . ,tool)))))))
 
 (ert-deftest urgrep-tests-get-tool-key ()
   (cl-letf (((symbol-function #'executable-find) #'always))
