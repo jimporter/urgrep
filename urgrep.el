@@ -513,7 +513,7 @@ If EDIT-COMMAND is non-nil, the search can be edited."
     ;; because that introduces a menu bar item we don't want.
     (set-keymap-parent map special-mode-map)
     (define-key map [mouse-2] #'compile-goto-error)
-    (define-key map [follow-link] #'mouse-face)
+    (define-key map [follow-link] 'mouse-face)
     (define-key map "\C-c\C-c" #'compile-goto-error)
     (define-key map "\C-m" #'compile-goto-error)
     (define-key map "\C-o" #'compilation-display-error)
