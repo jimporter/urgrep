@@ -201,7 +201,26 @@ See also `grep-process-setup'."
   (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne"))
 
 (defvar urgrep-tools
-  `((ripgrep
+  `((ugrep
+     (executable-name . "ugrep")
+     (regexp-syntax bre ere pcre)
+     (arguments executable color "-n" "--ignore-files" file-wildcards group
+                context case-fold regexp "-e" query)
+     (color-arguments
+      ('nil '("--color=never"))
+      (_    '("--color=always"
+              "--colors=mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne")))
+     (group-arguments ((pred identity) '("--heading" "--break")))
+     (context-arguments . ,urgrep--context-arguments)
+     (regexp-arguments ('bre  '("-G"))
+                       ('ere  '("-E"))
+                       ('pcre '("-P"))
+                       (_     '("-F")))
+     (case-fold-arguments ((pred identity) '("-i")))
+     (file-wildcards-arguments
+      ((and x (pred identity))
+       (mapcar (lambda (i) (concat "--include=" i)) x))))
+    (ripgrep
      (executable-name . "rg")
      (regexp-syntax pcre)
      (arguments executable color file-wildcards group context case-fold regexp

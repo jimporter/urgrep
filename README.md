@@ -2,7 +2,8 @@
 
 **Urgrep** is an Emacs package to provide a universal frontend for *any*
 grep-like tool, as an alternative to the built-in `M-x rgrep` (and other similar
-packages). Currently, `ripgrep`, `ag`, `ack`, `git grep`, and `grep`/`find` are
+packages). Currently, [`ugrep`][ugrep], [`ripgrep`][ripgrep], [`ag`][ag],
+[`ack`][ack], [`git grep`][git-grep], and [`grep`][grep]/[`find`][find] are
 supported.
 
 ## Why Urgrep?
@@ -86,3 +87,11 @@ arguments. For more information, consult the docstring for `urgrep-command`.
 
 Feedback is welcome, but it's a bit early for code contributions. Thanks for the
 thought, though! (Hopefully this will change after not too long.)
+
+[ugrep]: https://github.com/Genivia/ugrep
+[ripgrep]: https://github.com/BurntSushi/ripgrep
+[ag]: https://github.com/ggreer/the_silver_searcher
+[ack]: https://beyondgrep.com/
+[git-grep]: https://git-scm.com/docs/git-grep
+[grep]: https://www.gnu.org/software/grep/
+[find]: https://www.gnu.org/software/findutils/

@@ -48,6 +48,77 @@
   (should (string= command (mapconcat #'urgrep--maybe-shell-quote-argument
                                       expected-arguments " "))))
 
+(ert-deftest urgrep-tests-command-ugrep ()
+  (let ((tool (assq 'ugrep urgrep-tools))
+        (common-args '("ugrep" "--color=always"
+                       "--colors=mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne"
+                       "-n" "--ignore-files")))
+    ;; String/case
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool)
+     (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool)
+     (append common-args '("--heading" "--break" "-F" "-e" "Foo")))
+    (let ((case-fold-search nil))
+      (urgrep-test--check-command
+       (urgrep-command "foo" :tool tool)
+       (append common-args '("--heading" "--break" "-F" "-e" "foo"))))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold t)
+     (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold nil)
+     (append common-args '("--heading" "--break" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :case-fold 'smart)
+     (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "Foo" :tool tool :case-fold 'smart)
+     (append common-args '("--heading" "--break" "-F" "-e" "Foo")))
+    ;; Group
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :group nil)
+     (append common-args '("-i" "-F" "-e" "foo")))
+    ;; Regexp
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp t)
+     (append common-args '("--heading" "--break" "-i" "-G" "-e" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'bre)
+     (append common-args '("--heading" "--break" "-i" "-G" "-e" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'ere)
+     (append common-args '("--heading" "--break" "-i" "-E" "-e" "(foo)")))
+    (urgrep-test--check-command
+     (urgrep-command "(foo)" :tool tool :regexp 'pcre)
+     (append common-args '("--heading" "--break" "-i" "-P" "-e" "(foo)")))
+    ;; Context
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context 3)
+     (append common-args '("--heading" "--break" "-C3" "-i" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(3 . 3))
+     (append common-args '("--heading" "--break" "-C3" "-i" "-F" "-e" "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :context '(2 . 4))
+     (append common-args '("--heading" "--break" "-B2" "-A4" "-i" "-F" "-e"
+                           "foo")))
+    ;; File wildcard
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files "*.el")
+     (append common-args '("--include=*.el" "--heading" "--break" "-i" "-F" "-e"
+                           "foo")))
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
+     (append common-args '("--include=*.c" "--include=*.h" "--heading" "--break"
+                           "-i" "-F" "-e" "foo")))
+    ;; Color
+    (urgrep-test--check-command
+     (urgrep-command "foo" :tool tool :color nil)
+     (append '("ugrep" "--color=never" "-n" "--ignore-files" "--heading"
+               "--break" "-i" "-F" "-e" "foo")))))
+
 (ert-deftest urgrep-tests-command-ripgrep ()
   (let ((tool (assq 'ripgrep urgrep-tools))
         (common-args '("rg" "--color" "always" "--colors" "path:fg:magenta"
@@ -383,8 +454,8 @@
   (cl-letf (((symbol-function #'executable-find) #'always))
     (let* ((urgrep--host-defaults)
            (tool (urgrep-get-tool)))
-      (should (equal (car tool) 'ripgrep))
-      (should (equal (urgrep--get-prop 'executable-name tool) "rg"))
+      (should (equal (car tool) 'ugrep))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ugrep"))
       (should (equal urgrep--host-defaults `((localhost . ,tool)))))))
 
 (ert-deftest urgrep-tests-get-tool-default-cached ()
