@@ -103,6 +103,17 @@ The currently-used tool can be inspected from the hook via
 
 ;; Urgrep utility functions
 
+;; `format-prompt' was added in Emacs 28.1.
+(defalias 'urgrep--format-prompt
+  (if (fboundp 'format-prompt)
+      #'format-prompt
+    (lambda (prompt default &rest format-args)
+      (concat
+       (apply #'format prompt format-args)
+       (when default
+         (format " (default %s)" default))
+       ": "))))
+
 (defun urgrep--convert-regexp (expr from-syntax to-syntax)
   "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
   (cond ((and (not (eq from-syntax to-syntax))
@@ -773,16 +784,16 @@ point."
   "Return the prompt to use when asking for the search query.
 This depends on the current values of various urgrep options.  DEFAULT
 indicates the default query, if any."
-  (concat "Search "
-          (if urgrep-search-regexp "regexp" "string")
-          (let ((block (append `(,#'pcase ',urgrep-context-lines)
-                               urgrep--context-arguments)))
-            (mapconcat (lambda (i) (concat " " i)) (eval block t) ""))
-          (when urgrep-file-wildcards
-            (format " in %s" (mapconcat #'identity urgrep-file-wildcards " ")))
-          (when default
-            (format " (default %s)" default))
-          ": "))
+  (urgrep--format-prompt
+   (concat
+    "Search "
+    (if urgrep-search-regexp "regexp" "string")
+    (let ((block (append `(,#'pcase ',urgrep-context-lines)
+                         urgrep--context-arguments)))
+      (mapconcat (lambda (i) (concat " " i)) (eval block t) ""))
+    (when urgrep-file-wildcards
+      (format " in %s" (mapconcat #'identity urgrep-file-wildcards " "))))
+   default))
 
 (defun urgrep--update-search-prompt ()
   "Update the search prompt in the minibuffer."
