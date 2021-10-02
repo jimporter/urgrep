@@ -722,14 +722,12 @@ This function is called from `compilation-filter-hook'."
            t t)
           (cl-incf urgrep-num-matches-found))
         ;; Highlight matching filenames and delete ANSI escapes.
-        (when urgrep-group-matches
-          (goto-char beg)
-          (while (re-search-forward "\033\\[35m\\(.*?\\)\033\\[0?m" end 1)
-            (replace-match
-             (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
-                         'urgrep-file-name t)
-             t t)))
-
+        (goto-char beg)
+        (while (re-search-forward "\033\\[35m\\(.*?\\)\033\\[0?m" end 1)
+          (replace-match
+           (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
+                       'urgrep-file-name t)
+           t t))
         ;; Delete all remaining escape sequences.
         (goto-char beg)
         (while (re-search-forward "\033\\[[0-9;]*[mK]" end 1)
