@@ -939,7 +939,7 @@ directory."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(cl-defun urgrep (query directory &rest rest &allow-other-keys)
+(defun urgrep (query directory &rest rest)
   "Recursively search in DIRECTORY for a given QUERY.
 
 When called interactively, search in the project's root directory, or
@@ -959,13 +959,14 @@ Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines.
 Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searched."
   (interactive
-   (let ((directory (urgrep--read-directory current-prefix-arg)))
-     (list (urgrep--read-query nil) directory)))
-  (let* ((query (if (listp query) query (cons query rest)))
-         (command (apply #'urgrep-command query))
-         (tool (urgrep-get-tool (cadr (cl-member :tool query))))
+   (let ((directory (urgrep--read-directory current-prefix-arg))
+         (full-query (urgrep--read-query nil)))
+     (cons (car full-query) (cons directory (cdr full-query)))))
+  (let* ((full-query (cons query rest))
+         (command (apply #'urgrep-command full-query))
+         (tool (urgrep-get-tool (cadr (cl-member :tool full-query))))
          (default-directory (or directory default-directory)))
-    (urgrep--start command query tool)))
+    (urgrep--start command full-query tool)))
 
 ;;;###autoload
 (defun urgrep-run-command (command directory tool)
