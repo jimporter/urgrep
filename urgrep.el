@@ -591,7 +591,7 @@ If EDIT-COMMAND is non-nil, the search can be edited."
     "]"))
 
 (defvar urgrep-mode-font-lock-keywords
-  '(("^Urgrep started.*"
+  `(("^Urgrep started.*"
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
     ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
@@ -602,11 +602,17 @@ If EDIT-COMMAND is non-nil, the search can be edited."
      (1 'compilation-error)
      (2 'compilation-error nil t))
     ;; Highlight context lines of various flavors.
-    ("^\\(?:.+?\\([:-=\0]\\)\\)?[1-9][0-9]*\\([-=]\\).*\n"
-     (0 'urgrep-context)
-     (1 (if (eq (char-after (match-beginning 1)) ?\0)
-            `(face nil display ,(match-string 2)))
-        nil t))
+    (,(concat
+       "^\\(?:"
+       ;; Parse using a null terminator after the filename when possible.
+       "[^\0\n]+\\(\0\\)[0-9]+"
+       "\\|"
+       ;; Fallback if we can't use null terminators after the filename.
+       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":0" in filenames.
+       "\\(?:[^\n]*?[^\n/][:=-]\\)?[1-9][0-9]*"
+       "\\)\\([=-]\\).*$")
+     (0 'urgrep-context t)
+     (1 `(face nil display ,(match-string 2)) nil t))
     ;; Hide excessive part of rgrep command.
     ("^find \\(\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
@@ -651,12 +657,12 @@ versions, it's half-open.  Use this to adjust the value as needed in
     (,(concat
        "^\\(?:"
        ;; Parse using a null terminator after the filename when possible.
-       "\\(?1:[^\0\n]+\\)\\(?3:\0\\)\\(?2:[0-9]+\\):"
+       "\\(?1:[^\0\n]+\\)\\(?3:\0\\)\\(?2:[0-9]+\\)"
        "\\|"
        ;; Fallback if we can't use null terminators after the filename.
-       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":034:" in file names.
-       "\\(?1:[^\n:]+?[^\n/:]\\):[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
-       "\\)")
+       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":0" in filenames.
+       "\\(?1:[^\n]+?[^\n/]\\):\\(?2:[1-9][0-9]*\\)"
+       "\\):")
      1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)
      nil nil
      (3 '(face nil display ":")))
