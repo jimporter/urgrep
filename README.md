@@ -76,6 +76,11 @@ This also works with connection-local variables:
  '(:application tramp :machine "imagewriter") 'urgrep-ripgrep)
 ```
 
+### Using with wgrep
+
+wgrep provides a convenient way to edit results in grep-like buffers. Urgrep
+supports this as well. To enable the wgrep hooks, just load `urgrep-wgrep.el`.
+
 ## Programmatic interface
 
 In addition to interactive use, Urgrep is designed to allow for programmatic
