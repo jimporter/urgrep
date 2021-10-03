@@ -60,7 +60,7 @@ setting `urgrep-preferred-tools`:
 ```
 
 If a tool is installed in an unusual place on your system, you can specify this
-by providing a cons cell as an element in `urgrep-preferred-tools':
+by providing a cons cell as an element in `urgrep-preferred-tools`:
 
 ```elisp
 (setq urgrep-preferred-tools '((ag . "/home/coco/bin/ag")))
