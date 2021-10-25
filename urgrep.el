@@ -611,7 +611,7 @@ line number."
     ;; Grouped result.
     (looking-at "[0-9]+\\([=-]\\).*$")))
 
-(setq urgrep-mode-font-lock-keywords
+(defvar urgrep-mode-font-lock-keywords
   `(("^Urgrep started.*"
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
     ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
