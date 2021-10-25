@@ -590,7 +590,28 @@ If EDIT-COMMAND is non-nil, the search can be edited."
                       help-echo "Number of matches so far")
     "]"))
 
-(defvar urgrep-mode-font-lock-keywords
+(defun urgrep-mode--looking-at-context-line ()
+  "Return t if looking at a grep-like context line.
+
+If so, this function sets the match data, with the first match group
+indicating the separator between the line number and the match, and
+the second group indicating the separator between the file name and
+line number."
+  ;; Use the `urgrep-file-name' property set by `urgrep-filter' to reliably
+  ;; detect if the result was printed in grouped or ungrouped format.
+  (if (get-text-property (point) 'urgrep-file-name)
+      ;; Ungrouped result.
+      (let* ((file-name-end (next-single-property-change
+                             (point) 'urgrep-file-name))
+             (file-name (buffer-substring-no-properties (point) file-name-end)))
+        (looking-at (concat
+                     (regexp-quote file-name)
+                     "\\(?:\\(?2:\0\\)\\|[:=-]\\)"
+                     "[0-9]+\\(?1:[=-]\\).*$")))
+    ;; Grouped result.
+    (looking-at "[0-9]+\\([=-]\\).*$")))
+
+(setq urgrep-mode-font-lock-keywords
   `(("^Urgrep started.*"
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
     ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
@@ -602,15 +623,18 @@ If EDIT-COMMAND is non-nil, the search can be edited."
      (1 'compilation-error)
      (2 'compilation-error nil t))
     ;; Highlight context lines of various flavors.
-    (,(concat
-       "^\\(?:"
-       ;; Parse using a null terminator after the filename when possible.
-       "[^\0\n]+\\(\0\\)[0-9]+"
-       "\\|"
-       ;; Fallback if we can't use null terminators after the filename.
-       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":0" in filenames.
-       "\\(?:[^\n]*?[^\n/][:=-]\\)?[1-9][0-9]*"
-       "\\)\\([=-]\\).*$")
+    ((lambda (limit)
+       (unless (bolp) (forward-line))
+       ;; Search line-by-line until we're looking at something that
+       ;; looks like a context line.
+       (catch 'found
+         (while (< (point) limit)
+           (when (urgrep-mode--looking-at-context-line)
+             (goto-char (match-end 0))
+             (throw 'found t))
+           (forward-line)))
+       ;; Only return non-nil if point is still within the limit.
+       (< (point) limit))
      (0 'urgrep-context t)
      (1 `(face nil display ,(match-string 2)) nil t))
     ;; Hide excessive part of rgrep command.
