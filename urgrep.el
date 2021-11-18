@@ -282,10 +282,14 @@ See also `grep-process-setup'."
        (list "-G" (urgrep--wildcards-to-regexp x 'pcre)))))
     (git-grep
      (executable-name . "git")
+     ;; XXX: Since we use --no-index, maybe it would make sense to allow using
+     ;; git grep even outside of git repos.  However, that doesn't play nicely
+     ;; with people who want to customize the arguments.
      (vc-backend . "Git")
      (regexp-syntax bre ere pcre)
-     (arguments executable "--no-pager" color "-n" "--recurse-submodules" group
-                context case-fold regexp "-e" query "--" file-wildcards)
+     (arguments executable "--no-pager" color "--no-index" "--exclude-standard"
+                "-n" group context case-fold regexp "-e" query "--"
+                file-wildcards)
      ;; git is a bit odd in that color specification happens *before* the
      ;; subcommand and turning colors on/off happens *after*, so
      ;; `color-arguments' needs to include the subcommand "grep".
