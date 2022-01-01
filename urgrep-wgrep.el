@@ -101,9 +101,9 @@ This lets wgrep know what to ignore."
                            '(read-only t wgrep-header t))
       ;; Look for the end of the results.
       (goto-char (point-max))
-      (text-property-search-backward 'compilation-message)
+      (text-property-search-backward 'compilation-handle-exit)
       ;; If there's a footer, mark it.
-      (when (zerop (forward-line 1))
+      (unless (eobp)
         (add-text-properties (point) (point-max)
                              '(read-only t wgrep-footer t))))))
 
