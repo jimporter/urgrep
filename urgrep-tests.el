@@ -325,8 +325,8 @@
 (ert-deftest urgrep-tests-command-git-grep ()
   (let ((tool (assq 'git-grep urgrep-tools))
         (common-args '("git" "--no-pager" "-c" "color.grep.filename=magenta"
-                       "-c" "color.grep.match=bold red" "grep" "--color" "-n"
-                       "--recurse-submodules"))
+                       "-c" "color.grep.match=bold red" "grep" "--color"
+                       "--no-index" "--exclude-standard" "-n"))
         (group-args '("--heading" "--break")))
     ;; String/case
     (urgrep-test--check-command
@@ -389,7 +389,8 @@
     (urgrep-test--check-command
      (urgrep-command "foo" :tool tool :color nil)
      (append
-      '("git" "--no-pager" "grep" "--no-color" "-n" "--recurse-submodules")
+      '("git" "--no-pager" "grep" "--no-color" "--no-index"
+        "--exclude-standard" "-n")
       group-args
       '("-i" "-F" "-e" "foo" "--")))))
 
