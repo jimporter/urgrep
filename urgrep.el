@@ -178,10 +178,10 @@ and escapes null characters."
     ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
     (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
 
-(cl-defun urgrep--rgrep-command (query &key tool regexp case-fold context files
+(cl-defun urgrep--rgrep-command (query &key tool regexp case-fold files context
                                        color &allow-other-keys)
   "Get the command to run for QUERY when using rgrep.
-Optional keys TOOL, REGEXP, CASE-FOLD, CONTEXT, FILES, and COLOR are
+Optional keys TOOL, REGEXP, CASE-FOLD, FILES< CONTEXT, and COLOR are
 as in `urgrep-command'."
   (grep-compute-defaults)
   ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
@@ -217,12 +217,6 @@ See also `grep-process-setup'."
      (regexp-syntax bre ere pcre)
      (arguments executable color "-n" "--ignore-files" file-wildcards group
                 context case-fold regexp "-e" query)
-     (color-arguments
-      ('nil '("--color=never"))
-      (_    '("--color=always"
-              "--colors=mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne")))
-     (group-arguments ((pred identity) '("--heading" "--break")))
-     (context-arguments . ,urgrep--context-arguments)
      (regexp-arguments ('bre  '("-G"))
                        ('ere  '("-E"))
                        ('pcre '("-P"))
@@ -230,56 +224,62 @@ See also `grep-process-setup'."
      (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
       ((and x (pred identity))
-       (mapcar (lambda (i) (concat "--include=" i)) x))))
+       (mapcar (lambda (i) (concat "--include=" i)) x)))
+     (group-arguments ((pred identity) '("--heading" "--break")))
+     (context-arguments . ,urgrep--context-arguments)
+     (color-arguments
+      ('nil '("--color=never"))
+      (_    '("--color=always"
+              "--colors=mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne"))))
     (ripgrep
      (executable-name . "rg")
      (regexp-syntax pcre)
      (arguments executable color file-wildcards group context case-fold regexp
                 "--" query)
-     (color-arguments ('nil '("--color" "never"))
-                      (_    '("--color" "always" "--colors" "path:fg:magenta"
-                              "--colors" "match:fg:red" "--colors"
-                              "match:style:bold")))
-     (group-arguments ('nil '("--no-heading"))
-                      (_    '("--heading")))
-     (context-arguments . ,urgrep--context-arguments)
      (regexp-arguments ('nil '("-F")))
      (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
       ((and x (pred identity))
-       (flatten-list (mapcar (lambda (i) (cons "-g" i)) x)))))
+       (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))
+     (group-arguments ('nil '("--no-heading"))
+                      (_    '("--heading")))
+     (context-arguments . ,urgrep--context-arguments)
+     (color-arguments ('nil '("--color" "never"))
+                      (_    '("--color" "always" "--colors" "path:fg:magenta"
+                              "--colors" "match:fg:red" "--colors"
+                              "match:style:bold"))))
     (ag
      (executable-name . "ag")
      (regexp-syntax pcre)
      (arguments executable color file-wildcards group context case-fold regexp
                 "--" query)
-     (color-arguments ('nil '("--nocolor"))
-                      (_    '("--color-path" "35" "--color-match" "1;31")))
-     (group-arguments ('nil '("--nogroup"))
-                      (_    '("--group")))
-     (context-arguments . ,urgrep--context-arguments)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ('nil '("-s"))
                           (_    '("-i")))
      (file-wildcards-arguments
       ((and x (pred identity))
-       (list "-G" (urgrep--wildcards-to-regexp x 'pcre)))))
+       (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))
+     (group-arguments ('nil '("--nogroup"))
+                      (_    '("--group")))
+     (context-arguments . ,urgrep--context-arguments)
+     (color-arguments ('nil '("--nocolor"))
+                      (_    '("--color-path" "35" "--color-match" "1;31"))))
     (ack
      (executable-name . "ack")
      (regexp-syntax pcre)
      (arguments executable color file-wildcards group context case-fold regexp
                 "--" query)
-     (color-arguments ('nil '("--nocolor"))
-                      (_    '("--color-filename" "magenta" "--color-match"
-                              "bold red")))
-     (group-arguments ('nil '("--nogroup"))
-                      (_    '("--group")))
-     (context-arguments . ,urgrep--context-arguments)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
       ((and x (pred identity))
-       (list "-G" (urgrep--wildcards-to-regexp x 'pcre)))))
+       (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))
+     (group-arguments ('nil '("--nogroup"))
+                      (_    '("--group")))
+     (context-arguments . ,urgrep--context-arguments)
+     (color-arguments ('nil '("--nocolor"))
+                      (_    '("--color-filename" "magenta" "--color-match"
+                              "bold red"))))
     (git-grep
      (executable-name . "git")
      ;; XXX: Since we use --no-index, maybe it would make sense to allow using
@@ -290,26 +290,25 @@ See also `grep-process-setup'."
      (arguments executable "--no-pager" color "--no-index" "--exclude-standard"
                 "-n" group context case-fold regexp "-e" query "--"
                 file-wildcards)
-     ;; git is a bit odd in that color specification happens *before* the
-     ;; subcommand and turning colors on/off happens *after*, so
-     ;; `color-arguments' needs to include the subcommand "grep".
-     (color-arguments ('nil '("grep" "--no-color"))
-                      (_    '("-c" "color.grep.filename=magenta" "-c"
-                              "color.grep.match=bold red" "grep" "--color")))
-     (group-arguments ((pred identity) '("--heading" "--break")))
-     (context-arguments . ,urgrep--context-arguments)
      (regexp-arguments ('bre  '("-G"))
                        ('ere  '("-E"))
                        ('pcre '("-P"))
                        (_     '("-F")))
      (case-fold-arguments ((pred identity) '("-i")))
-     (file-wildcards-arguments (x x)))
+     (file-wildcards-arguments (x x))
+     (group-arguments ((pred identity) '("--heading" "--break")))
+     (context-arguments . ,urgrep--context-arguments)
+     ;; git is a bit odd in that color specification happens *before* the
+     ;; subcommand and turning colors on/off happens *after*, so
+     ;; `color-arguments' needs to include the subcommand "grep".
+     (color-arguments ('nil '("grep" "--no-color"))
+                      (_    '("-c" "color.grep.filename=magenta" "-c"
+                              "color.grep.match=bold red" "grep" "--color"))))
     (grep
      (executable-name . "grep")
      (regexp-syntax bre ere pcre)
      (command-function . ,#'urgrep--rgrep-command)
      (process-setup . ,#'urgrep--rgrep-process-setup)
-     (context-arguments . ,urgrep--context-arguments)
      ;; XXX: On MS Windows, -P and -F seem to cause issues due to the default
      ;; locale.  Setting LC_ALL=en_US.utf8 fixes this, but I'm not sure if this
      ;; is the right thing to do in general...
@@ -317,7 +316,8 @@ See also `grep-process-setup'."
                        ('ere  '("-E"))
                        ('pcre '("-P"))
                        (_     '("-F")))
-     (case-fold-arguments ((pred identity) '("-i")))))
+     (case-fold-arguments ((pred identity) '("-i")))
+     (context-arguments . ,urgrep--context-arguments)))
   "An alist of known tools to try when running urgrep.")
 
 (defcustom urgrep-preferred-tools nil
@@ -430,17 +430,14 @@ for MS shells."
           (t (car tool-syntaxes)))))
 
 ;;;###autoload
-(cl-defun urgrep-command (query &key tool (group t) regexp (case-fold 'inherit)
-                                (context 0) files (color t))
+(cl-defun urgrep-command (query &key tool regexp (case-fold 'inherit) files
+                                (group t) (context 0) (color t))
   "Return a command to use to search for QUERY.
 Several keyword arguments can be supplied to adjust the resulting
 command:
 
 TOOL: a tool from `urgrep-tools': a key-value pair from the list, just
 the key, or nil to use the default tool.
-
-GROUP: show results grouped by filename (t, the default), or if nil,
-prefix the filename on each result line.
 
 REGEXP: the style of regexp to use for results; one of nil (fixed
 strings), `bre' (basic regexp), `ere' (extend regexp), `pcre'
@@ -450,11 +447,14 @@ strings), `bre' (basic regexp), `ere' (extend regexp), `pcre'
 CASE-FOLD: determine whether QUERY is case-sensitive or not; possible
 values are as `urgrep-case-fold', defaulting to `inherit'.
 
+FILES: a wildcard (or list of wildcards) to limit the files searched.
+
+GROUP: show results grouped by filename (t, the default), or if nil,
+prefix the filename on each result line.
+
 CONTEXT: the number of lines of context to show around results; either
 an integer (to show the same number of lines before and after) or a
 cons (to show CAR and CDR lines before and after, respectively).
-
-FILES: a wildcard (or list of wildcards) to limit the files searched.
 
 COLOR: non-nil (the default) if the output should use color."
   (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
@@ -471,8 +471,8 @@ COLOR: non-nil (the default) if the output should use color."
     ;; Build the command arguments.
     (if cmd-fun
         (funcall cmd-fun query :tool tool :regexp regexp-syntax
-                 :case-fold case-fold :context context :files files
-                 :color color)
+                 :case-fold case-fold :files files :group group
+                 :context context :color color)
       (let* ((executable (urgrep--get-prop 'executable-name tool))
              (arguments (urgrep--get-prop 'arguments tool)))
         (setq arguments (cl-substitute executable 'executable arguments))
@@ -480,9 +480,9 @@ COLOR: non-nil (the default) if the output should use color."
         ;; Fill in various options according to the tool's argument syntax.
         (pcase-dolist (`(,k . ,v) `((regexp         . ,tool-re-syntax)
                                     (case-fold      . ,case-fold)
-                                    (context        . ,context)
-                                    (group          . ,group)
                                     (file-wildcards . ,files)
+                                    (group          . ,group)
+                                    (context        . ,context)
                                     (color          . ,color)))
           (let* ((prop (intern (concat (symbol-name k) "-arguments")))
                  (args (urgrep--get-prop-pcase prop tool v)))
@@ -927,19 +927,19 @@ future searches."
     (define-key map "\M-sA" #'urgrep-set-after-context)
     map))
 
-(cl-defun urgrep--read-query (initial &key tool (group urgrep-group-matches)
-                                      (regexp urgrep-search-regexp)
+(cl-defun urgrep--read-query (initial &key tool (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
-                                      (context urgrep-context-lines)
-                                      (files urgrep-file-wildcards))
+                                      (files urgrep-file-wildcards)
+                                      (group urgrep-group-matches)
+                                      (context urgrep-context-lines))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into a shell
 command.  TOOL, GROUP, REGEXP, CASE-FOLD, CONTEXT, and FILES are as in
 `urgrep-command'."
   (let* ((urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
-         (urgrep-context-lines context)
          (urgrep-file-wildcards files)
+         (urgrep-context-lines context)
          (default (and (not initial) (urgrep--search-default)))
          (prompt (urgrep--search-prompt default))
          (query (minibuffer-with-setup-hook
@@ -947,9 +947,9 @@ command.  TOOL, GROUP, REGEXP, CASE-FOLD, CONTEXT, and FILES are as in
                   (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :tool (urgrep-get-tool tool) :group group
-          :regexp urgrep-search-regexp :case-fold urgrep-case-fold
-          :context urgrep-context-lines :files urgrep-file-wildcards)))
+    (list query :tool (urgrep-get-tool tool) :regexp urgrep-search-regexp
+          :case-fold urgrep-case-fold :files urgrep-file-wildcards :group group
+          :context urgrep-context-lines)))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
