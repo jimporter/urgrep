@@ -81,6 +81,27 @@ This also works with connection-local variables:
 wgrep provides a convenient way to edit results in grep-like buffers. Urgrep
 supports this as well. To enable the wgrep hooks, just load `urgrep-wgrep.el`.
 
+### Using with Eshell
+
+In Eshell buffers, you can call `urgrep` much like you'd call any command-line
+recursive grep command. The following options are supported:
+
+| Option                      | Action                                      |
+|:----------------------------|:--------------------------------------------|
+| `-G`, `--basic-regexp`      | Pattern is a basic regexp                   |
+| `-E`, `--extended-regexp`   | Pattern is an extended regexp               |
+| `-P`, `--perl-regexp`       | Pattern is a Perl-compatible regexp         |
+| `-R`, `--default-regexp`    | Pattern is a regexp with the default syntax |
+| `-F`, `--fixed-strings`     | Pattern is a string                         |
+| `-s`, `--case-sensitive`    | Search case-sensitively                     |
+| `-i`, `--ignore-case`       | Search case-insensitively                   |
+| `-S`, `--smart-case`        | Ignore case if pattern is all lower-case    |
+| `--group`                   | Group results by file                       |
+| `--no-group`                | Don't group results by file                 |
+| `-Cn`, `--context=n`        | Show *n* lines of context                   |
+| `-Bn`, `--before-context=n` | Show *n* lines of leading context           |
+| `-An`, `--after-context=n`  | Show *n* lines of trailing context          |
+
 ## Programmatic interface
 
 In addition to interactive use, Urgrep is designed to allow for programmatic

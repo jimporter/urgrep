@@ -31,6 +31,7 @@
 
 (require 'cl-lib)
 (require 'compile)
+(require 'esh-opt)
 (require 'generator)
 (require 'grep)
 (require 'project)
@@ -181,7 +182,7 @@ and escapes null characters."
 (cl-defun urgrep--rgrep-command (query &key tool regexp case-fold files context
                                        color &allow-other-keys)
   "Get the command to run for QUERY when using rgrep.
-Optional keys TOOL, REGEXP, CASE-FOLD, FILES< CONTEXT, and COLOR are
+Optional keys TOOL, REGEXP, CASE-FOLD, FILES, CONTEXT, and COLOR are
 as in `urgrep-command'."
   (grep-compute-defaults)
   ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
@@ -1016,6 +1017,79 @@ to edit the command before running it."
   (let ((tool (urgrep-get-tool tool))
         (default-directory (or directory default-directory)))
     (urgrep--start command command tool)))
+
+;;;###autoload
+(defun eshell/urgrep (&rest args)
+  "Recursively search for a pattern, passing ARGS.
+This is meant to be used as a command in Eshell."
+  (require 'esh-cmd)
+  (require 'em-unix)
+  (eshell-eval-using-options
+   "urgrep" args
+   '(;; Regexp options
+     (?G "basic-regexp" (bre) regexp
+         "PATTERN is a basic regular expression")
+     (?E "extended-regexp" (ere) regexp
+         "PATTERN is an extended regular expression")
+     (?P "perl-regexp" (pcre) regexp
+         "PATTERN is a Perl-compatible regular expression")
+     (?R "default-regexp" (t) regexp
+         "PATTERN is a regular expression with the default syntax")
+     (?F "fixed-strings" (nil) regexp
+         "PATTERN is a string")
+     ;; Case-folding options
+     (?s "case-sensitive" nil case-fold
+         "search case-sensitively for PATTERN")
+     (?i "ignore-case" nil case-fold
+         "ignore case when searching for PATTERN")
+     (?S "smart-case" nil case-fold
+         "ignore case when searching for PATTERN if PATTERN is all lower case")
+     ;; Grouping options
+     (nil "group" (t) group
+          "group results by file")
+     (nil "no-group" (nil) group
+          "don't group results")
+     ;; Context options
+     (?C "context" t context-around
+         "number of lines of context to print")
+     (?B "before-context" t context-before
+         "number of lines of leading context to print")
+     (?A "after-context" t context-after
+         "number of lines of trailing context to print")
+     ;; General options
+     (?h "help" nil nil "show this help message")
+     :usage "[OPTION]... PATTERN [PATH]
+Recursively search for PATTERN within PATH.")
+   (unless args (error "Expected a search pattern"))
+   ;; TODO: Add support for multiple paths.
+   (when (> (length args) 2) (error "Only one path supported currently"))
+   (let ((query (car args))
+         (directory (or (cadr args) default-directory))
+         (context
+          (cond (context-around (string-to-number context-around))
+                ((or context-before context-after)
+                 (cons (if context-before (string-to-number context-before) 0)
+                       (if context-after (string-to-number context-after) 0)))))
+         options)
+     ;; Fill the options to pass to `urgrep'.
+     (when context (setq options (nconc `(:context ,context) options)))
+     (when group (setq options (nconc `(:group ,(car group)) options)))
+     (when case-fold (setq options (nconc `(:case-fold ,(car case-fold))
+                                          options)))
+     (when regexp (setq options (nconc `(:regexp ,(car regexp)) options)))
+     ;; Run `urgrep'.
+     (if (and (not eshell-plain-grep-behavior)
+              (eshell-interactive-output-p)
+              (not eshell-in-pipeline-p)
+              (not eshell-in-subcommand-p))
+         (apply #'urgrep query directory options)
+       ;; Return the arguments to run directly.
+       (when (not (equal directory default-directory))
+         (error "Can't use plain urgrep with a non-default directory yet"))
+       (setq options (nconc '(:color nil) options))
+       (throw 'eshell-replace-command
+              (let ((cmd (apply #'urgrep-command query options)))
+                (eshell-parse-command (concat "*" cmd))))))))
 
 (provide 'urgrep)
 ;;; urgrep.el ends here
