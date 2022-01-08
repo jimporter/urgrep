@@ -1000,7 +1000,8 @@ Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searche
   (let* ((full-query (cons query rest))
          (command (apply #'urgrep-command full-query))
          (tool (urgrep-get-tool (cadr (cl-member :tool full-query))))
-         (default-directory (or directory default-directory)))
+         (default-directory (if directory (expand-file-name directory)
+                              default-directory)))
     (urgrep--start command full-query tool)))
 
 ;;;###autoload
@@ -1015,7 +1016,8 @@ to edit the command before running it."
      (list (urgrep--read-command (apply #'urgrep-command query))
            directory (cadr (cl-member :tool query)))))
   (let ((tool (urgrep-get-tool tool))
-        (default-directory (or directory default-directory)))
+        (default-directory (if directory (expand-file-name directory)
+                             default-directory)))
     (urgrep--start command command tool)))
 
 ;;;###autoload
