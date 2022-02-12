@@ -1,6 +1,6 @@
 ;;; urgrep-tests.el --- Tests for urgrep -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Jim Porter
+;; Copyright (C) 2021-2022 Jim Porter
 
 ;; Author: Jim Porter
 ;; Keywords: tests
