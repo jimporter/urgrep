@@ -779,19 +779,29 @@ This function is called from `compilation-filter-hook'."
               compilation-error-screen-columns nil)
   (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
 
-(defun urgrep--start (command query tool)
+(defun urgrep--start (command query tool &optional directory)
   "Start a urgrep process for COMMAND.
 QUERY is the original argument list that generated COMMAND (or it may
 be the same value as COMMAND).  TOOL is the tool that was used to
 generate the command.  This sets `urgrep-current-query' and
 `urgrep-current-tool' buffer-locally so that they can be used when
 rerunning the search."
+  (setq directory (if directory
+                      (file-name-as-directory (expand-file-name directory))
+                    default-directory))
   (with-current-buffer
       ;; Dynamically bind `urgrep-current-tool' so that `urgrep-process-filter'
       ;; can consult it.
       (urgrep--with-killed-local-variable 'urgrep-current-tool
-        (let ((urgrep-current-tool tool))
+        ;; Let-bind `default-directory' here so that the external command knows
+        ;; where to search...
+        (let ((urgrep-current-tool tool)
+              (default-directory directory))
           (compilation-start command #'urgrep-mode)))
+    ;; ... and then set `default-directory' here to be sure it's up to date.
+    ;; This can get out of sync if re-running urgrep from a urgrep buffer, but
+    ;; with a different search directory set.
+    (setq default-directory directory)
     (setq urgrep-current-query query
           urgrep-current-tool tool)
     (current-buffer)))
@@ -999,10 +1009,8 @@ Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searche
      (cons (car full-query) (cons directory (cdr full-query)))))
   (let* ((full-query (cons query rest))
          (command (apply #'urgrep-command full-query))
-         (tool (urgrep-get-tool (cadr (cl-member :tool full-query))))
-         (default-directory (if directory (expand-file-name directory)
-                              default-directory)))
-    (urgrep--start command full-query tool)))
+         (tool (urgrep-get-tool (cadr (cl-member :tool full-query)))))
+    (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
 (defun urgrep-run-command (command directory tool)
