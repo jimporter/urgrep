@@ -488,10 +488,12 @@ COLOR: non-nil (the default) if the output should use color."
           (let* ((prop (intern (concat (symbol-name k) "-arguments")))
                  (args (urgrep--get-prop-pcase prop tool v)))
             (setq arguments (cl-substitute args k arguments))))
-        ;; FIXME: Inside compile and dired buffers, `shell-quote-argument'
-        ;; doesn't handle TRAMP right...
         (setq arguments (flatten-list arguments))
-        (mapconcat #'urgrep--maybe-shell-quote-argument arguments " ")))))
+        ;; XXX: Should we wrap more code with `with-connection-local-variables'?
+        ;; There might be some other variables we use that would benefit from
+        ;; being connection-local aware...
+        (with-connection-local-variables
+         (mapconcat #'urgrep--maybe-shell-quote-argument arguments " "))))))
 
 
 ;; urgrep-mode
