@@ -518,7 +518,7 @@
                    (- match-start text-start)))))
 
 (ert-deftest urgrep-tests-urgrep-group ()
-  (switch-to-buffer (urgrep "urgrep" nil))
+  (switch-to-buffer (urgrep "urgrep"))
   (should (and (equal urgrep-current-tool (urgrep-get-tool))
                (local-variable-p 'urgrep-current-tool)))
   (should (and (equal urgrep-current-query '("urgrep"))
@@ -530,7 +530,7 @@
   (urgrep-tests--check-match-at-point))
 
 (ert-deftest urgrep-tests-urgrep-nogroup ()
-  (switch-to-buffer (urgrep "urgrep" nil :group nil))
+  (switch-to-buffer (urgrep "urgrep" :group nil))
   (should (and (equal urgrep-current-tool (urgrep-get-tool))
                (local-variable-p 'urgrep-current-tool)))
   (should (and (equal urgrep-current-query '("urgrep" :group nil))

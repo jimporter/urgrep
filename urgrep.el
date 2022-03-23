@@ -432,7 +432,8 @@ for MS shells."
 
 ;;;###autoload
 (cl-defun urgrep-command (query &key tool regexp (case-fold 'inherit) files
-                                (group t) (context 0) (color t))
+                                (group t) (context 0) (color t)
+                                (directory default-directory))
   "Return a command to use to search for QUERY.
 Several keyword arguments can be supplied to adjust the resulting
 command:
@@ -457,43 +458,44 @@ CONTEXT: the number of lines of context to show around results; either
 an integer (to show the same number of lines before and after) or a
 cons (to show CAR and CDR lines before and after, respectively).
 
-COLOR: non-nil (the default) if the output should use color."
-  (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
-         (files (if (listp files) files (list files)))
-         (tool (urgrep-get-tool tool))
-         (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
-         (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
-         (cmd-fun (urgrep--get-prop 'command-function tool)))
-    ;; Determine whether to search case-sensitively or not.
-    (when (eq case-fold 'inherit)
-      (setq case-fold (if case-fold-search 'smart nil)))
-    (when (eq case-fold 'smart)
-      (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
-    ;; Build the command arguments.
-    (if cmd-fun
-        (funcall cmd-fun query :tool tool :regexp regexp-syntax
-                 :case-fold case-fold :files files :group group
-                 :context context :color color)
-      (let* ((executable (urgrep--get-prop 'executable-name tool))
-             (arguments (urgrep--get-prop 'arguments tool)))
-        (setq arguments (cl-substitute executable 'executable arguments))
-        (setq arguments (cl-substitute query 'query arguments))
-        ;; Fill in various options according to the tool's argument syntax.
-        (pcase-dolist (`(,k . ,v) `((regexp         . ,tool-re-syntax)
-                                    (case-fold      . ,case-fold)
-                                    (file-wildcards . ,files)
-                                    (group          . ,group)
-                                    (context        . ,context)
-                                    (color          . ,color)))
-          (let* ((prop (intern (concat (symbol-name k) "-arguments")))
-                 (args (urgrep--get-prop-pcase prop tool v)))
-            (setq arguments (cl-substitute args k arguments))))
-        (setq arguments (flatten-list arguments))
-        ;; XXX: Should we wrap more code with `with-connection-local-variables'?
-        ;; There might be some other variables we use that would benefit from
-        ;; being connection-local aware...
-        (with-connection-local-variables
-         (mapconcat #'urgrep--maybe-shell-quote-argument arguments " "))))))
+COLOR: non-nil (the default) if the output should use color.
+
+DIRECTORY: the directory to search in, or nil to use the
+`default-directory'."
+  (let ((default-directory (or directory default-directory)))
+    (with-connection-local-variables
+     (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
+            (files (if (listp files) files (list files)))
+            (tool (urgrep-get-tool tool))
+            (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
+            (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
+            (cmd-fun (urgrep--get-prop 'command-function tool)))
+       ;; Determine whether to search case-sensitively or not.
+       (when (eq case-fold 'inherit)
+         (setq case-fold (if case-fold-search 'smart nil)))
+       (when (eq case-fold 'smart)
+         (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
+       ;; Build the command arguments.
+       (if cmd-fun
+           (funcall cmd-fun query :tool tool :regexp regexp-syntax
+                    :case-fold case-fold :files files :group group
+                    :context context :color color)
+         (let* ((executable (urgrep--get-prop 'executable-name tool))
+                (arguments (urgrep--get-prop 'arguments tool)))
+           (setq arguments (cl-substitute executable 'executable arguments))
+           (setq arguments (cl-substitute query 'query arguments))
+           ;; Fill in various options according to the tool's argument syntax.
+           (pcase-dolist (`(,k . ,v) `((regexp         . ,tool-re-syntax)
+                                       (case-fold      . ,case-fold)
+                                       (file-wildcards . ,files)
+                                       (group          . ,group)
+                                       (context        . ,context)
+                                       (color          . ,color)))
+             (let* ((prop (intern (concat (symbol-name k) "-arguments")))
+                    (args (urgrep--get-prop-pcase prop tool v)))
+               (setq arguments (cl-substitute args k arguments))))
+           (setq arguments (flatten-list arguments))
+           (mapconcat #'urgrep--maybe-shell-quote-argument arguments " ")))))))
 
 
 ;; urgrep-mode
@@ -944,12 +946,14 @@ future searches."
                                       (case-fold urgrep-case-fold)
                                       (files urgrep-file-wildcards)
                                       (group urgrep-group-matches)
-                                      (context urgrep-context-lines))
+                                      (context urgrep-context-lines)
+                                      (directory default-directory))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into a shell
-command.  TOOL, GROUP, REGEXP, CASE-FOLD, CONTEXT, and FILES are as in
-`urgrep-command'."
-  (let* ((urgrep-search-regexp regexp)
+command.  TOOL, REGEXP, CASE-FOLD, FILES, GROUP, CONTEXT, and DIRECTORY
+ are as in `urgrep-command'."
+  (let* ((default-directory directory)
+         (urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
          (urgrep-file-wildcards files)
          (urgrep-context-lines context)
@@ -962,7 +966,7 @@ command.  TOOL, GROUP, REGEXP, CASE-FOLD, CONTEXT, and FILES are as in
          (query (if (equal query "") default query)))
     (list query :tool (urgrep-get-tool tool) :regexp urgrep-search-regexp
           :case-fold urgrep-case-fold :files urgrep-file-wildcards :group group
-          :context urgrep-context-lines)))
+          :context urgrep-context-lines :directory directory)))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
@@ -986,8 +990,8 @@ directory."
    (t (read-directory-name "In directory: " nil nil t))))
 
 ;;;###autoload
-(defun urgrep (query directory &rest rest)
-  "Recursively search in DIRECTORY for a given QUERY.
+(defun urgrep (query &rest rest)
+  "Recursively search for a given QUERY.
 
 When called interactively, search in the project's root directory, or
 the current directory if there is no current project.  With \\[universal-argument] prefix,
@@ -1006,12 +1010,12 @@ Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines.
 Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searched."
   (interactive
-   (let ((directory (urgrep--read-directory current-prefix-arg))
-         (full-query (urgrep--read-query nil)))
-     (cons (car full-query) (cons directory (cdr full-query)))))
+   (let ((directory (urgrep--read-directory current-prefix-arg)))
+     (urgrep--read-query nil :directory directory)))
   (let* ((full-query (cons query rest))
          (command (apply #'urgrep-command full-query))
-         (tool (urgrep-get-tool (cadr (cl-member :tool full-query)))))
+         (tool (urgrep-get-tool (cadr (cl-member :tool full-query))))
+         (directory (cadr (cl-member :directory full-query))))
     (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
@@ -1021,14 +1025,11 @@ Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searche
 When called interactively, this behaves like `urgrep', but allows you
 to edit the command before running it."
   (interactive
-   (let ((directory (urgrep--read-directory current-prefix-arg))
-         (query (urgrep--read-query nil)))
+   (let* ((directory (urgrep--read-directory current-prefix-arg))
+          (query (urgrep--read-query nil :directory directory)))
      (list (urgrep--read-command (apply #'urgrep-command query))
            directory (cadr (cl-member :tool query)))))
-  (let ((tool (urgrep-get-tool tool))
-        (default-directory (if directory (expand-file-name directory)
-                             default-directory)))
-    (urgrep--start command command tool)))
+  (urgrep--start command command (urgrep-get-tool tool) directory))
 
 ;;;###autoload
 (defun eshell/urgrep (&rest args)
