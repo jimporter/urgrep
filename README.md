@@ -18,7 +18,7 @@ along, you won't need to find a new Emacs package for it.
 Easily manipulate per-search options with Isearch-like key bindings within the
 Urgrep minibuffer prompt.
 
-#### Seamless support for TRAMP
+#### Seamless support for Tramp
 
 Each host can use a different set of tools depending on what the system has
 installed without any special configuration.

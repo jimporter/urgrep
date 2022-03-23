@@ -340,7 +340,7 @@ and the path of the executable."
 
 (defvar urgrep--host-defaults nil
   "Default urgrep values for each known host.
-This is an alist of host symbols (`localhost' or a TRAMP host) and
+This is an alist of host symbols (`localhost' or a Tramp host) and
 the default tool to use on that host.")
 
 (defun urgrep--get-prop (prop tool)
