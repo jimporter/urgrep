@@ -395,60 +395,60 @@
       '("-i" "-F" "-e" "foo" "--")))))
 
 (ert-deftest urgrep-tests-command-grep ()
-  (let ((tool (assq 'grep urgrep-tools)))
+  (let ((tool (assq 'grep urgrep-tools))
+        (template (concat "^find \\(\\|.+ \\)\\. \\(\\|.+ \\)%s\\(\\|.+ \\)"
+                          "grep %s\\(\\|.+ \\)%s"))
+        (escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
     ;; String/case
-    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
+    (should (string-match (format template "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool)))
-    (should (string-match "^find \\. .*grep --color=always -F .*Foo"
+    (should (string-match (format template "" "--color=always -F" "Foo")
                           (urgrep-command "Foo" :tool tool)))
     (let ((case-fold-search nil))
-      (should (string-match "^find \\. .*grep --color=always -F .*foo"
+      (should (string-match (format template "" "--color=always -F" "foo")
                             (urgrep-command "foo" :tool tool))))
-    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
+    (should (string-match (format template "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold t)))
-    (should (string-match "^find \\. .*grep --color=always -F .*foo"
+    (should (string-match (format template "" "--color=always -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold nil)))
-    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
+    (should (string-match (format template "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold 'smart)))
-    (should (string-match "^find \\. .*grep --color=always -F .*Foo"
+    (should (string-match (format template "" "--color=always -F" "Foo")
                           (urgrep-command "Foo" :tool tool :case-fold 'smart)))
     ;; Group
-    (should (string-match "^find \\. .*grep --color=always -i -F .*foo"
+    (should (string-match (format template "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :group nil)))
     ;; Regexp
-    (let ((query (shell-quote-argument "(foo)")))
-      (should (string-match
-               (concat "^find \\. .*grep --color=always -i -G .*" query)
-               (urgrep-command "(foo)" :tool tool :regexp t)))
-      (should (string-match
-               (concat "^find \\. .*grep --color=always -i -G .*" query)
-               (urgrep-command "(foo)" :tool tool :regexp 'bre)))
-      (should (string-match
-               (concat "^find \\. .*grep --color=always -i -E .*" query)
-               (urgrep-command "(foo)" :tool tool :regexp 'ere)))
-      (should (string-match
-               (concat "^find \\. .*grep --color=always -i -P .*" query)
-               (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
+    (let ((query (funcall escape "(foo)")))
+      (should (string-match (format template "" "--color=always -i -G" query)
+                            (urgrep-command "(foo)" :tool tool :regexp t)))
+      (should (string-match (format template "" "--color=always -i -G" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'bre)))
+      (should (string-match (format template "" "--color=always -i -E" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'ere)))
+      (should (string-match (format template "" "--color=always -i -P" query)
+                            (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
     ;; Context
-    (should (string-match "^find \\. .*grep --color=always -C3 -i -F .*foo"
+    (should (string-match (format template "" "--color=always -C3 -i -F" "foo")
                           (urgrep-command "foo" :tool tool :context 3)))
-    (should (string-match "^find \\. .*grep --color=always -C3 -i -F .*foo"
+    (should (string-match (format template "" "--color=always -C3 -i -F" "foo")
                           (urgrep-command "foo" :tool tool :context '(3 . 3))))
-    (should (string-match "^find \\. .*grep --color=always -B2 -A4 -i -F .*foo"
+    (should (string-match (format template "" "--color=always -B2 -A4 -i -F"
+                                  "foo")
                           (urgrep-command "foo" :tool tool :context '(2 . 4))))
     ;; File wildcard
     (let ((escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
       (should (string-match
-               (concat "^find \\. .*-i?name " (funcall escape "*.el")
-                       " .*grep --color=always -i -F .*foo")
+               (format template (concat "-i?name " (funcall escape "*.el") " ")
+                       "--color=always -i -F" "foo")
                (urgrep-command "foo" :tool tool :files "*.el")))
       (should (string-match
-               (concat "^find \\. .*-i?name " (funcall escape "*.c")
-                       " -o -i?name " (funcall escape "*.h")
-                       " .*grep --color=always -i -F .*foo")
+               (format template (concat "-i?name " (funcall escape "*.c") " -o "
+                                        "-i?name " (funcall escape "*.h") " ")
+                       "--color=always -i -F" "foo")
                (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))
     ;; Color
-    (should (string-match "^find \\. .*grep +-i -F .*foo"
+    (should (string-match (format template "" "+-i -F" "foo")
                           (urgrep-command "foo" :tool tool :color nil)))))
 
 (ert-deftest urgrep-tests-get-tool-default ()
