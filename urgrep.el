@@ -115,6 +115,12 @@ The currently-used tool can be inspected from the hook via
          (format " (default %s)" default))
        ": "))))
 
+;; `project-root' was added in project.el 0.3.0 (Emacs 28.1).
+(defalias 'urgrep--project-root
+  (if (fboundp 'project-root)
+      #'project-root
+    (lambda (project) (car (project-roots project)))))
+
 (defun urgrep--convert-regexp (expr from-syntax to-syntax)
   "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
   (cond ((and (not (eq from-syntax to-syntax))
@@ -386,7 +392,7 @@ This caches the default tool per-host in `urgrep--host-defaults'."
                  (when-let (((and tool-vc-backend (not vc-backend-name)))
                             (proj (project-current)))
                    (setq vc-backend-name (vc-responsible-backend
-                                          (project-root proj))))
+                                          (urgrep--project-root proj))))
                  ;; If we find the executable (and it's for the right VC
                  ;; backend, if relevant), cache it and then return it.
                  (when (and (executable-find tool-executable t)
@@ -985,7 +991,7 @@ value is 4, return the current directory.  Otherwise, prompt for the
 directory."
   (cond
    ((not arg) (let ((proj (project-current)))
-                (if proj (project-root proj) default-directory)))
+                (if proj (urgrep--project-root proj) default-directory)))
    ((= (prefix-numeric-value arg) 4) default-directory)
    (t (read-directory-name "In directory: " nil nil t))))
 
