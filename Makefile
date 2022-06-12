@@ -1,4 +1,4 @@
-EMACS=emacs
+EMACS ?= emacs
 
 .PHONY: check
 check:
