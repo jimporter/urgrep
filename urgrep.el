@@ -653,7 +653,7 @@ line number."
      (0 'urgrep-context t)
      (1 `(face nil display ,(match-string 2)) nil t))
     ;; Hide excessive part of rgrep command.
-    ("^find \\(\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
+    ("^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
           '(face nil abbreviated-command t))))))
 
