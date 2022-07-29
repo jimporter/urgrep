@@ -216,7 +216,7 @@ See also `grep-process-setup'."
   ;; GREP_COLOR is used in GNU grep 2.5.1, but deprecated in later versions.
   (setenv "GREP_COLOR" "01;31")
   ;; GREP_COLORS is used in GNU grep 2.5.2 and later versions.
-  (setenv "GREP_COLORS" "mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne"))
+  (setenv "GREP_COLORS" "mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne"))
 
 (defvar urgrep-tools
   `((ugrep
