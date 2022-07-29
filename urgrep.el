@@ -651,7 +651,7 @@ line number."
        ;; Only return non-nil if point is still within the limit.
        (< (point) limit))
      (0 'urgrep-context t)
-     (1 `(face nil display ,(match-string 2)) nil t))
+     (2 `(face nil display ,(match-string 1)) nil t))
     ;; Hide excessive part of rgrep command.
     ("^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
      (1 (if grep-find-abbreviate grep-find-abbreviate-properties
