@@ -760,7 +760,7 @@ This function is called from `compilation-filter-hook'."
                         "\033\\[0?1;31m"      ; Find the escapes together...
                         "\\|"
                         "\033\\[1m\033\\[31m" ; ... or apart.
-                        "\\)\\(.*?\\)\033\\[0?m")
+                        "\\)\\(.*?\n?\\)\033\\[0?m")
                 end 1)
           (replace-match
            (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-match)
