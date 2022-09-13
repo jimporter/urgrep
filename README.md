@@ -78,8 +78,9 @@ This also works with connection-local variables:
 
 ### Using with wgrep
 
-wgrep provides a convenient way to edit results in grep-like buffers. Urgrep
-supports this as well. To enable the wgrep hooks, just load `urgrep-wgrep.el`.
+[wgrep][wgrep] provides a convenient way to edit results in grep-like buffers.
+Urgrep can hook into wgrep to support this as well. To enable this, just load
+`urgrep-wgrep.el`.
 
 ### Using with Eshell
 
@@ -121,3 +122,4 @@ thought, though! (Hopefully this will change after not too long.)
 [git-grep]: https://git-scm.com/docs/git-grep
 [grep]: https://www.gnu.org/software/grep/
 [find]: https://www.gnu.org/software/findutils/
+[wgrep]: https://github.com/mhayashi1120/Emacs-wgrep
