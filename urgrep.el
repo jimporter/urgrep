@@ -404,8 +404,7 @@ This caches the default tool per-host in `urgrep--host-defaults'."
                    ;; this host will use different tools for different
                    ;; directories, so we can't cache anything.
                    (unless saw-vc-tool-p
-                     (add-to-list 'urgrep--host-defaults
-                                  (cons host-id tool)))
+                     (push (cons host-id tool) urgrep--host-defaults))
                    (cl-return tool)))))))
 
 (defun urgrep-get-tool (&optional tool)
