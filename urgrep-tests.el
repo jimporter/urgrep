@@ -24,10 +24,24 @@
 
 ;;; Code:
 
-(require 'ert)
+;; FIXME: Work around Emacs bug#58265.
+(let ((orig-home (getenv "HOME")))
+  (require 'ert)
+  (require 'tramp)
+  (require 'ert-x)
+  (setenv "HOME" orig-home))
 
 (unless (fboundp 'always)
   (defun always (&rest _) t))
+
+(defun urgrep-tests-remote-accessible-p ()
+  "Return whether a test involving remote files can proceed."
+  (let ((inhibit-message t))
+    (ignore-errors
+      (and
+       (file-remote-p ert-remote-temporary-file-directory)
+       (file-directory-p ert-remote-temporary-file-directory)
+       (file-writable-p ert-remote-temporary-file-directory)))))
 
 (ert-deftest urgrep-tests-common-prefix ()
   (should (equal (urgrep--common-prefix "foo" "bar") ""))
@@ -501,6 +515,30 @@
       (should (equal (car tool) 'goofy))
       (should (equal (urgrep--get-prop 'executable-name tool) "gf"))
       (should (equal urgrep--host-defaults nil)))))
+
+(ert-deftest urgrep-tests-get-tool-remote-host ()
+  (skip-unless (urgrep-tests-remote-accessible-p))
+  (connection-local-set-profile-variables
+   'urgrep-test-ripgrep
+   '((urgrep-preferred-tools . (ripgrep))))
+  (let ((default-directory ert-remote-temporary-file-directory))
+    (connection-local-set-profiles
+     (connection-local-criteria-for-default-directory) 'urgrep-test-ripgrep))
+  (cl-letf (((symbol-function #'executable-find) #'always)
+            (urgrep--host-defaults nil))
+    ;; Get the preferred tool on the local host.
+    (let ((tool (with-connection-local-variables (urgrep-get-tool))))
+      (should (equal (car tool) 'ugrep))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ugrep")))
+    ;; Now try on a remote host.
+    (let* ((default-directory ert-remote-temporary-file-directory)
+           (tool (with-connection-local-variables (urgrep-get-tool))))
+      (should (equal (car tool) 'ripgrep))
+      (should (equal (urgrep--get-prop 'executable-name tool) "rg")))
+    ;; Try again on the local host to make sure it didn't change.
+    (let ((tool (with-connection-local-variables (urgrep-get-tool))))
+      (should (equal (car tool) 'ugrep))
+      (should (equal (urgrep--get-prop 'executable-name tool) "ugrep")))))
 
 (defun urgrep-tests--check-match-at-point ()
   (let* ((line (string-to-number (current-word)))
