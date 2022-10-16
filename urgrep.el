@@ -344,10 +344,22 @@ and the path of the executable."
                                      ,tool-choice (string :tag "Path")))))))
     :group 'urgrep)
 
-(defvar urgrep--host-defaults nil
-  "Default urgrep values for each known host.
-This is an alist of host symbols (`localhost' or a Tramp host) and
-the default tool to use on that host.")
+(defvar urgrep--cached-tool nil
+  "The cached urgrep tool to use.
+This value is connection-local.")
+
+(connection-local-set-profile-variables
+ 'urgrep-connection-local-profile
+ '((urgrep--cached-tool . nil)))
+
+(connection-local-set-profiles
+ '(:application tramp)
+ 'urgrep-connection-local-profile)
+
+(defsubst urgrep-connection-local-profile ()
+  "Get a connection-local profile name for urgrep."
+  (intern (concat "urgrep-connection-local-profile-"
+		  (or (file-remote-p default-directory) "local"))))
 
 (defun urgrep--get-prop (prop tool)
   "Get the property PROP from TOOL, or nil if PROP is undefined."
@@ -379,33 +391,40 @@ each tool, possibly modified with the executable path defined in
 (defun urgrep--get-default-tool ()
   "Get the preferred urgrep tool from `urgrep-tools'.
 This caches the default tool per-host in `urgrep--host-defaults'."
-  (if-let ((host-id (intern (or (file-remote-p default-directory) "localhost")))
-           (cached-tool (alist-get host-id urgrep--host-defaults)))
-      cached-tool
-    (let ((vc-backend-name)
-          (saw-vc-tool-p nil))
-      (cl-loop for tool iter-by (urgrep--iter-tools) do
-               (let ((tool-executable (urgrep--get-prop 'executable-name tool))
-                     (tool-vc-backend (urgrep--get-prop 'vc-backend tool)))
-                 (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
-                 ;; Cache the VC backend name if we need it.
-                 (when-let (((and tool-vc-backend (not vc-backend-name)))
-                            (proj (project-current)))
-                   (setq vc-backend-name (vc-responsible-backend
-                                          (urgrep--project-root proj))))
-                 ;; If we find the executable (and it's for the right VC
-                 ;; backend, if relevant), cache it and then return it.
-                 (when (and (executable-find tool-executable t)
-                            (or (not tool-vc-backend)
-                                (string= vc-backend-name tool-vc-backend)))
-                   ;; So long as we didn't examine a VC-specific tool, we can
-                   ;; cache this result for future calls, since the result will
-                   ;; always be the same.  If we *did* see a VC-specific tool,
-                   ;; this host will use different tools for different
-                   ;; directories, so we can't cache anything.
-                   (unless saw-vc-tool-p
-                     (push (cons host-id tool) urgrep--host-defaults))
-                   (cl-return tool)))))))
+  (with-connection-local-variables
+   (or urgrep--cached-tool
+       (let ((vc-backend-name)
+             (saw-vc-tool-p nil))
+         (cl-loop
+          for tool iter-by (urgrep--iter-tools) do
+          (let ((tool-executable (urgrep--get-prop 'executable-name tool))
+                (tool-vc-backend (urgrep--get-prop 'vc-backend tool)))
+            (setq saw-vc-tool-p (or saw-vc-tool-p tool-vc-backend))
+            ;; Cache the VC backend name if we need it.
+            (when-let (((and tool-vc-backend (not vc-backend-name)))
+                       (proj (project-current)))
+              (setq vc-backend-name (vc-responsible-backend
+                                     (urgrep--project-root proj))))
+            ;; If we find the executable (and it's for the right VC
+            ;; backend, if relevant), cache it and then return it.
+            (when (and (executable-find tool-executable t)
+                       (or (not tool-vc-backend)
+                           (string= vc-backend-name tool-vc-backend)))
+              ;; So long as we didn't examine a VC-specific tool, we can
+              ;; cache this result for future calls, since the result will
+              ;; always be the same.  If we *did* see a VC-specific tool,
+              ;; this host will use different tools for different
+              ;; directories, so we can't cache anything.
+              (unless saw-vc-tool-p
+                (setq urgrep--cached-tool tool)
+                (when (file-remote-p default-directory)
+                  (connection-local-set-profile-variables
+                   (urgrep-connection-local-profile)
+                   `((urgrep--cached-tool . ,urgrep--cached-tool)))
+                  (connection-local-set-profiles
+                   (connection-local-criteria-for-default-directory)
+                   (urgrep-connection-local-profile))))
+              (cl-return tool))))))))
 
 (defun urgrep-get-tool (&optional tool)
   "Get the urgrep tool for TOOL.
