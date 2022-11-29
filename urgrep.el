@@ -1018,8 +1018,10 @@ directory."
   "Recursively search for a given QUERY.
 
 When called interactively, search in the project's root directory, or
-the current directory if there is no current project.  With \\[universal-argument] prefix,
-search in the current directory.  With two \\[universal-argument] prefixes, prompt for a
+the current directory if there is no current project.  With \
+\\[universal-argument] prefix,
+search in the current directory.  With two \\[universal-argument] prefixes, \
+prompt for a
 directory to search in.
 \\<urgrep-minibuffer-map>
 The following keys are bound in `urgrep-minibuffer-map', active when
@@ -1032,7 +1034,8 @@ Type \\[urgrep-set-context] to set the number of context lines.
   lines.  Without a prefix, prompt for the number.
 Type \\[urgrep-set-before-context] to set the number of before context lines.
 Type \\[urgrep-set-after-context] to set the number of after context lines.
-Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files searched."
+Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files \
+searched."
   (interactive
    (let ((directory (urgrep--read-directory current-prefix-arg)))
      (urgrep--read-query nil :directory directory)))
