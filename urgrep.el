@@ -43,17 +43,19 @@
   :group 'processes)
 
 (defcustom urgrep-group-matches t
-  "Group matches by the file they were found in."
+  "If non-nil, group matches by the file they were found in."
   :type 'boolean
   :group 'urgrep)
 
 (defcustom urgrep-search-regexp nil
-  "Default to searching via regexp."
+  "If non-nil, default to searching via regexp."
   :type 'boolean
   :group 'urgrep)
 
 (defcustom urgrep-regexp-syntax 'bre
-  "Default syntax to use for regexp searches."
+  "Default syntax to use for regexp searches.
+Valid values are `bre' (basic regexp), `ere' (extended regexp),
+or `prce' (Perl-compatible regexp)."
   :type '(radio (const :tag "Basic regexp" bre)
                 (const :tag "Extended regexp" ere)
                 (const :tag "Perl-compatible regexp" pcre))
@@ -62,7 +64,7 @@
 (defcustom urgrep-case-fold 'inherit
   "Default case-sensitivity for searches.
 Valid values are nil (case-sensitive), t (case-insensitive), `smart'
-\(case-insensitive if the query is all lower case), and `inherit'
+\(case-insensitive if the query is all lower case), or `inherit'
 \(case-sensitive if `case-fold-search' is nil, \"smart\" otherwise)."
   :type '(radio (const :tag "Case sensitive" nil)
                 (const :tag "Smart case" smart)
