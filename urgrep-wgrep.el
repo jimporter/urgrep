@@ -1,6 +1,6 @@
 ;;; urgrep-wgrep.el --- Universal recursive grep -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Jim Porter
+;; Copyright (C) 2021-2023 Jim Porter
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
