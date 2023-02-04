@@ -197,10 +197,10 @@ as in `urgrep-command'."
   (let ((grep-find-template grep-find-template)
         (grep-highlight-matches (if color 'always nil))
         (files (if files (mapconcat #'identity files " ") "*")))
-    (pcase-dolist (`(,k . ,v) `((regexp-arguments    . ,regexp)
-                                (case-fold-arguments . ,case-fold)
-                                (context-arguments   . ,context)))
-      (when-let ((args (urgrep--get-prop-pcase k tool v))
+    (pcase-dolist (`(,k . ,v) `((regexp    . ,regexp)
+                                (case-fold . ,case-fold)
+                                (context   . ,context)))
+      (when-let ((args (urgrep--get-prop-pcase k tool v "-arguments"))
                  (args (mapconcat #'urgrep--maybe-shell-quote-argument args
                                   " "))
                  ((string-match "<C>" grep-find-template)))
@@ -363,13 +363,17 @@ This value is connection-local.")
   (intern (concat "urgrep-connection-local-profile-"
 		  (or (file-remote-p default-directory) "local"))))
 
-(defun urgrep--get-prop (prop tool)
-  "Get the property PROP from TOOL, or nil if PROP is undefined."
+(defun urgrep--get-prop (prop tool &optional suffix)
+  "Get the property PROP from TOOL, or nil if PROP is undefined.
+If SUFFIX is non-nil, append it to PROP to generate the property name."
+  (when suffix
+    (setq prop (intern (concat (symbol-name prop) suffix))))
   (alist-get prop (cdr tool)))
 
-(defun urgrep--get-prop-pcase (prop tool value)
-  "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE."
-  (when-let ((cases (urgrep--get-prop prop tool))
+(defun urgrep--get-prop-pcase (prop tool value &optional suffix)
+  "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE.
+If SUFFIX is non-nil, append it to PROP to generate the property name."
+  (when-let ((cases (urgrep--get-prop prop tool suffix))
              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
 
@@ -517,8 +521,7 @@ DIRECTORY: the directory to search in, or nil to use the
                                        (group          . ,group)
                                        (context        . ,context)
                                        (color          . ,color)))
-             (let* ((prop (intern (concat (symbol-name k) "-arguments")))
-                    (args (urgrep--get-prop-pcase prop tool v)))
+             (let ((args (urgrep--get-prop-pcase k tool v "-arguments")))
                (setq arguments (cl-substitute args k arguments))))
            (setq arguments (flatten-list arguments))
            (mapconcat #'urgrep--maybe-shell-quote-argument arguments " ")))))))
