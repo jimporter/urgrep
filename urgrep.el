@@ -42,6 +42,11 @@
   :group 'tools
   :group 'processes)
 
+(defcustom urgrep-abbreviate-command t
+  "If non-nil, hide uninteresting parts of the command in the Urgrep buffer."
+  :type 'boolean
+  :group 'urgrep)
+
 (defcustom urgrep-group-matches t
   "If non-nil, group matches by the file they were found in."
   :type 'boolean
@@ -170,6 +175,41 @@ and escapes null characters."
         (concat "^" (funcall to-re prefix) esc "("
                 (mapconcat to-re suffixes (concat esc "|")) esc ")$")))))
 
+(defun urgrep--maybe-shell-quote-argument (argument)
+  "Quote ARGUMENT if needed for passing to an inferior shell.
+This works as `shell-quote-argument', but avoids quoting unnecessarily
+for MS shells."
+  (if (and (or (eq system-type 'ms-dos)
+               (and (eq system-type 'windows-nt) (w32-shell-dos-semantics)))
+           (not (string-match "[^-0-9a-zA-Z_./=]" argument)))
+      argument
+    (shell-quote-argument argument)))
+
+(defun urgrep--flatten-arguments (tree &optional abbrs)
+  "Flatten a TREE of arguments into a single shell-quoted string.
+This also finds sublists with the `:abbreviate' key and adds the
+`abbreviated-command' text property to the resulting substring.
+
+If ABBRS is non-nil, it should be a list of abbreviations to use,
+one for each `:abbreviate' key found."
+  (let (elems)
+    (while (consp tree)
+      (catch 'abbreviated
+        (let ((elem (pop tree)))
+          (while (consp elem)
+            (when (eq (car elem) :abbreviate)
+              (push (propertize
+                     (mapconcat #'urgrep--maybe-shell-quote-argument
+                                (flatten-list (cdr elem)) " ")
+                     'abbreviated-command (or (pop abbrs) t))
+                    elems)
+              (throw 'abbreviated t))
+            (push (cdr elem) tree)
+            (setq elem (car elem)))
+          (when elem (push (urgrep--maybe-shell-quote-argument elem) elems)))))
+    (when tree (push (urgrep--maybe-shell-quote-argument tree) elems))
+    (string-join (nreverse elems) " ")))
+
 (defmacro urgrep--with-killed-local-variable (variable &rest body)
   "Execute the forms in BODY with VARIABLE temporarily non-local."
   (declare (indent 1))
@@ -206,8 +246,16 @@ as in `urgrep-command'."
                  ((string-match "<C>" grep-find-template)))
         (setq grep-find-template
               (replace-match (concat "<C> " args) t t grep-find-template))))
-    (let ((case-fold-search nil))
-      (rgrep-default-command query files nil))))
+    (let* ((case-fold-search nil)
+           (command (rgrep-default-command query files nil)))
+      (save-match-data
+        ;; Hide excessive part of rgrep command.
+        (when (string-match
+               "^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
+               command)
+          (put-text-property (match-beginning 1) (match-end 1)
+                             'abbreviated-command t command)))
+      command)))
 
 (defun urgrep--rgrep-process-setup ()
   "Set up environment variables for rgrep.
@@ -224,8 +272,8 @@ See also `grep-process-setup'."
   `((ugrep
      (executable-name . "ugrep")
      (regexp-syntax bre ere pcre)
-     (arguments executable color "-n" "--ignore-files" file-wildcards group
-                context case-fold regexp "-e" query)
+     (arguments executable (:abbreviate color "-n" "--ignore-files")
+                file-wildcards group context case-fold regexp "-e" query)
      (regexp-arguments ('bre  '("-G"))
                        ('ere  '("-E"))
                        ('pcre '("-P"))
@@ -243,8 +291,8 @@ See also `grep-process-setup'."
     (ripgrep
      (executable-name . "rg")
      (regexp-syntax pcre)
-     (arguments executable color file-wildcards group context case-fold regexp
-                "--" query)
+     (arguments executable (:abbreviate color) file-wildcards group context
+                case-fold regexp "--" query)
      (regexp-arguments ('nil '("-F")))
      (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
@@ -260,8 +308,8 @@ See also `grep-process-setup'."
     (ag
      (executable-name . "ag")
      (regexp-syntax pcre)
-     (arguments executable color file-wildcards group context case-fold regexp
-                "--" query)
+     (arguments executable (:abbreviate color) file-wildcards group context
+                case-fold regexp "--" query)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ('nil '("-s"))
                           (_    '("-i")))
@@ -276,8 +324,8 @@ See also `grep-process-setup'."
     (ack
      (executable-name . "ack")
      (regexp-syntax pcre)
-     (arguments executable color file-wildcards group context case-fold regexp
-                "--" query)
+     (arguments executable (:abbreviate color) file-wildcards group context
+                case-fold regexp "--" query)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ((pred identity) '("-i")))
      (file-wildcards-arguments
@@ -296,9 +344,10 @@ See also `grep-process-setup'."
      ;; with people who want to customize the arguments.
      (vc-backend . "Git")
      (regexp-syntax bre ere pcre)
-     (arguments executable "--no-pager" color "--no-index" "--exclude-standard"
-                "-n" group context case-fold regexp "-e" query "--"
-                file-wildcards)
+     (arguments executable (:abbreviate "--no-pager" color "--no-index"
+                                        "--exclude-standard" "-n")
+                group context case-fold regexp "-e" query "--" file-wildcards)
+     (abbreviations "grep")
      (regexp-arguments ('bre  '("-G"))
                        ('ere  '("-E"))
                        ('pcre '("-P"))
@@ -441,16 +490,6 @@ in `urgrep-tools'.  Otherwise, return TOOL as-is."
     ((and (pred symbolp) tool) (assq tool urgrep-tools))
     (tool tool)))
 
-(defun urgrep--maybe-shell-quote-argument (argument)
-  "Quote ARGUMENT if needed for passing to an inferior shell.
-This works as `shell-quote-argument', but avoids quoting unnecessarily
-for MS shells."
-  (if (and (or (eq system-type 'ms-dos)
-               (and (eq system-type 'windows-nt) (w32-shell-dos-semantics)))
-           (not (string-match "[^-0-9a-zA-Z_./=]" argument)))
-      argument
-    (shell-quote-argument argument)))
-
 (defun urgrep--get-best-syntax (syntax tool)
   "Return the regexp syntax closest to SYNTAX that TOOL supports."
   (let ((tool-syntaxes (urgrep--get-prop 'regexp-syntax tool)))
@@ -510,21 +549,21 @@ DIRECTORY: the directory to search in, or nil to use the
            (funcall cmd-fun query :tool tool :regexp regexp-syntax
                     :case-fold case-fold :files files :group group
                     :context context :color color)
-         (let* ((executable (urgrep--get-prop 'executable-name tool))
-                (arguments (urgrep--get-prop 'arguments tool)))
-           (setq arguments (cl-substitute executable 'executable arguments))
-           (setq arguments (cl-substitute query 'query arguments))
-           ;; Fill in various options according to the tool's argument syntax.
-           (pcase-dolist (`(,k . ,v) `((regexp         . ,tool-re-syntax)
-                                       (case-fold      . ,case-fold)
-                                       (file-wildcards . ,files)
-                                       (group          . ,group)
-                                       (context        . ,context)
-                                       (color          . ,color)))
-             (let ((args (urgrep--get-prop-pcase k tool v "-arguments")))
-               (setq arguments (cl-substitute args k arguments))))
-           (setq arguments (flatten-list arguments))
-           (mapconcat #'urgrep--maybe-shell-quote-argument arguments " ")))))))
+         (let ((arguments (urgrep--get-prop 'arguments tool))
+               (abbrev (urgrep--get-prop 'abbreviations tool))
+               (props `((executable . ,(urgrep--get-prop 'executable-name tool))
+                        (query . ,query)
+                        ,@(mapcar (pcase-lambda (`(,k . ,v))
+                                    (cons k (urgrep--get-prop-pcase
+                                             k tool v "-arguments")))
+                                  `((regexp         . ,tool-re-syntax)
+                                    (case-fold      . ,case-fold)
+                                    (file-wildcards . ,files)
+                                    (group          . ,group)
+                                    (context        . ,context)
+                                    (color          . ,color))))))
+           (urgrep--flatten-arguments (cl-sublis props arguments)
+                                      abbrev)))))))
 
 
 ;; urgrep-mode
@@ -622,6 +661,14 @@ If EDIT-COMMAND is non-nil, the search can be edited."
        :help "Restart search")
       map)))
 
+(defvar urgrep-mode-abbreviation-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [down-mouse-2] 'mouse-set-point)
+    (define-key map [mouse-2] 'grep-find-toggle-abbreviation)
+    (define-key map "\C-m" 'grep-find-toggle-abbreviation)
+    map)
+  "Keymap for urgrep abbreviation buttons.")
+
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
                       face urgrep-match-count
@@ -674,11 +721,7 @@ line number."
        ;; Only return non-nil if point is still within the limit.
        (< (point) limit))
      (0 'urgrep-context t)
-     (2 `(face nil display ,(match-string 1)) nil t))
-    ;; Hide excessive part of rgrep command.
-    ("^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
-     (1 (if grep-find-abbreviate grep-find-abbreviate-properties
-          '(face nil abbreviated-command t))))))
+     (2 `(face nil display ,(match-string 1)) nil t))))
 
 (defvar urgrep--column-end-adjustment
   (if (< emacs-major-version 28) 0 1)
@@ -812,6 +855,27 @@ This function is called from `compilation-filter-hook'."
               compilation-error-screen-columns nil)
   (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
 
+(defun urgrep--hide-abbreviations (command)
+  "If `urgrep-abbreviate-command' is non-nil, hide abbreviations in COMMAND."
+  (when urgrep-abbreviate-command
+    (let ((ellipsis (if (char-displayable-p ?…) "…" "..."))
+          (start 0) end)
+      (while start
+        (setq end (next-single-property-change
+                   start 'abbreviated-command command))
+        (when-let ((abbrev (get-text-property start 'abbreviated-command
+                                              command)))
+          (add-text-properties
+           start end
+           `( face nil
+              display ,(format "[%s%s]" (if (eq abbrev t) "" abbrev) ellipsis)
+              mouse-face highlight
+              help-echo "RET, mouse-2: show unabbreviated command"
+              keymap ,urgrep-mode-abbreviation-map)
+           command))
+        (setq start end))))
+  command)
+
 (defun urgrep--start (command query tool &optional directory)
   "Start a urgrep process for COMMAND.
 QUERY is the original argument list that generated COMMAND (or it may
@@ -830,7 +894,8 @@ rerunning the search."
         ;; where to search...
         (let ((urgrep-current-tool tool)
               (default-directory directory))
-          (compilation-start command #'urgrep-mode)))
+          (compilation-start (urgrep--hide-abbreviations command)
+                             #'urgrep-mode)))
     ;; ... and then set `default-directory' here to be sure it's up to date.
     ;; This can get out of sync if re-running urgrep from a urgrep buffer, but
     ;; with a different search directory set.
