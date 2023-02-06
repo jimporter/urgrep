@@ -29,8 +29,8 @@ The primary entry point to Urgrep is the interactive function `urgrep`. This
 prompts you for a query to search for in, by default, the root directory of the
 current project (or the `default-directory` if there is no project). By
 prefixing with <kbd>C-u</kbd>, this will always start the search within the
-`default-directory`. With <kbd>C-u</kbd> <kbd>C-u</kbd>, Urgrep will allow you
-to enter the base directory. Within the search prompt, there are several
+`default-directory`. With <kbd>C-u</kbd> <kbd>C-u</kbd>, Urgrep will first
+prompt you for the search directory. Within the search prompt, there are several
 Isearch-like key bindings to let you modify the search's behavior:
 
 | Key binding                 | Action                                   |
