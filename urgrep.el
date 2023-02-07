@@ -764,8 +764,10 @@ versions, it's half-open.  Use this to adjust the value as needed in
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
     (if-let ((match (text-property-search-backward 'urgrep-file-name)))
-        (buffer-substring (prop-match-beginning match)
-                          (prop-match-end match)))))
+        (buffer-substring-no-properties (prop-match-beginning match)
+                                        (prop-match-end match))
+      ;; Emacs 27 and lower will break if we return nil from this function.
+      (when (< emacs-major-version 28) "*unknown*"))))
 
 (defconst urgrep-regexp-alist
   ;; XXX: Try to rely on ANSI escapes as with the match highlight?
