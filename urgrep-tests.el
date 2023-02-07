@@ -155,9 +155,10 @@ joined to compare against COMMAND."
 
 (ert-deftest urgrep-tests/command/ripgrep ()
   (let ((tool (assq 'ripgrep urgrep-tools))
-        (common-args '("rg" "--color" "always" "--colors" "path:fg:magenta"
-                       "--colors" "match:fg:red" "--colors"
-                       "match:style:bold")))
+        (common-args '("rg" "--color=always" "--colors=path:none"
+                       "--colors=path:fg:magenta" "--colors=line:none"
+                       "--colors=column:none" "--colors=match:none"
+                       "--colors=match:fg:red" "--colors=match:style:bold")))
     ;; String/case
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool)
@@ -219,11 +220,12 @@ joined to compare against COMMAND."
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
-     (append '("rg" "--color" "never" "--heading" "-i" "-F" "--" "foo")))))
+     (append '("rg" "--color=never" "--heading" "-i" "-F" "--" "foo")))))
 
 (ert-deftest urgrep-tests/command/ag ()
   (let ((tool (assq 'ag urgrep-tools))
-        (common-args '("ag" "--color-path" "35" "--color-match" "1;31")))
+        (common-args '("ag" "--color" "--color-path=35" "--color-line="
+                       "--color-match=1;31")))
     ;; String/case
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool)
@@ -290,8 +292,9 @@ joined to compare against COMMAND."
 
 (ert-deftest urgrep-tests/command/ack ()
   (let ((tool (assq 'ack urgrep-tools))
-        (common-args '("ack" "--color-filename" "magenta" "--color-match"
-                       "bold red")))
+        (common-args '("ack" "--color" "--color-filename=magenta"
+                       "--color-lineno=clear" "--color-colno=clear"
+                       "--color-match=bold red")))
     ;; String/case
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool)
@@ -359,7 +362,12 @@ joined to compare against COMMAND."
 (ert-deftest urgrep-tests/command/git-grep ()
   (let ((tool (assq 'git-grep urgrep-tools))
         (common-args '("git" "--no-pager" "-c" "color.grep.filename=magenta"
-                       "-c" "color.grep.match=bold red" "grep" "--color"
+                       "-c" "color.grep.match=bold red" "-c"
+                       "color.grep.context=" "-c" "color.grep.function="
+                       "-c" "color.grep.lineNumber=" "-c" "color.grep.column="
+                       "-c" "color.grep.matchContext=" "-c"
+                       "color.grep.matchSelected=" "-c" "color.grep.selected="
+                       "-c" "color.grep.separator=" "grep" "--color"
                        "--no-index" "--exclude-standard" "-n"))
         (group-args '("--heading" "--break")))
     ;; String/case

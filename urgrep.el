@@ -301,10 +301,12 @@ See also `grep-process-setup'."
      (group-arguments ('nil '("--no-heading"))
                       (_    '("--heading")))
      (context-arguments . ,urgrep--context-arguments)
-     (color-arguments ('nil '("--color" "never"))
-                      (_    '("--color" "always" "--colors" "path:fg:magenta"
-                              "--colors" "match:fg:red" "--colors"
-                              "match:style:bold"))))
+     (color-arguments ('nil '("--color=never"))
+                      (_    '("--color=always" "--colors=path:none"
+                              "--colors=path:fg:magenta"
+                              "--colors=line:none" "--colors=column:none"
+                              "--colors=match:none" "--colors=match:fg:red"
+                              "--colors=match:style:bold"))))
     (ag
      (executable-name . "ag")
      (regexp-syntax pcre)
@@ -320,7 +322,8 @@ See also `grep-process-setup'."
                       (_    '("--group")))
      (context-arguments . ,urgrep--context-arguments)
      (color-arguments ('nil '("--nocolor"))
-                      (_    '("--color-path" "35" "--color-match" "1;31"))))
+                      (_    '("--color" "--color-path=35" "--color-line="
+                              "--color-match=1;31"))))
     (ack
      (executable-name . "ack")
      (regexp-syntax pcre)
@@ -335,8 +338,9 @@ See also `grep-process-setup'."
                       (_    '("--group")))
      (context-arguments . ,urgrep--context-arguments)
      (color-arguments ('nil '("--nocolor"))
-                      (_    '("--color-filename" "magenta" "--color-match"
-                              "bold red"))))
+                      (_    '("--color" "--color-filename=magenta"
+                              "--color-lineno=clear" "--color-colno=clear"
+                              "--color-match=bold red"))))
     (git-grep
      (executable-name . "git")
      ;; XXX: Since we use --no-index, maybe it would make sense to allow using
@@ -360,8 +364,17 @@ See also `grep-process-setup'."
      ;; subcommand and turning colors on/off happens *after*, so
      ;; `color-arguments' needs to include the subcommand "grep".
      (color-arguments ('nil '("grep" "--no-color"))
-                      (_    '("-c" "color.grep.filename=magenta" "-c"
-                              "color.grep.match=bold red" "grep" "--color"))))
+                      (_    '("-c" "color.grep.filename=magenta"
+                              "-c" "color.grep.match=bold red"
+                              "-c" "color.grep.context="
+                              "-c" "color.grep.function="
+                              "-c" "color.grep.lineNumber="
+                              "-c" "color.grep.column="
+                              "-c" "color.grep.matchContext="
+                              "-c" "color.grep.matchSelected="
+                              "-c" "color.grep.selected="
+                              "-c" "color.grep.separator="
+                              "grep" "--color"))))
     (grep
      (executable-name . "grep")
      (regexp-syntax bre ere pcre)
