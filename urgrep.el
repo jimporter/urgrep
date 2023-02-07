@@ -370,8 +370,6 @@ See also `grep-process-setup'."
                               "-c" "color.grep.function="
                               "-c" "color.grep.lineNumber="
                               "-c" "color.grep.column="
-                              "-c" "color.grep.matchContext="
-                              "-c" "color.grep.matchSelected="
                               "-c" "color.grep.selected="
                               "-c" "color.grep.separator="
                               "grep" "--color"))))

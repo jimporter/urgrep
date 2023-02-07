@@ -365,10 +365,8 @@ joined to compare against COMMAND."
                        "-c" "color.grep.match=bold red" "-c"
                        "color.grep.context=" "-c" "color.grep.function="
                        "-c" "color.grep.lineNumber=" "-c" "color.grep.column="
-                       "-c" "color.grep.matchContext=" "-c"
-                       "color.grep.matchSelected=" "-c" "color.grep.selected="
-                       "-c" "color.grep.separator=" "grep" "--color"
-                       "--no-index" "--exclude-standard" "-n"))
+                       "-c" "color.grep.selected=" "-c" "color.grep.separator="
+                       "grep" "--color" "--no-index" "--exclude-standard" "-n"))
         (group-args '("--heading" "--break")))
     ;; String/case
     (urgrep-tests/check-command
