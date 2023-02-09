@@ -832,8 +832,7 @@ See `compilation-error-regexp-alist' for format details.")
 (defun urgrep-filter ()
   "Handle match highlighting escape sequences inserted by the process.
 This function is called from `compilation-filter-hook'."
-  (rx-let ((ansi-sgr (&rest rest)
-                     (seq "\033[" rest "m")))
+  (rx-let ((ansi-sgr (&rest rest) (seq "\033[" rest "m")))
     (save-excursion
       (forward-line 0)
       (let ((end (point)) beg)
