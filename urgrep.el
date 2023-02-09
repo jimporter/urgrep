@@ -546,7 +546,8 @@ DIRECTORY: the directory to search in, or nil to use the
     (with-connection-local-variables
      (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
             (files (if (listp files) files (list files)))
-            (tool (urgrep-get-tool tool))
+            (tool (or (urgrep-get-tool tool)
+                      (error "unknown tool %s" tool)))
             (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
             (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
             (cmd-fun (urgrep--get-prop 'command-function tool)))
