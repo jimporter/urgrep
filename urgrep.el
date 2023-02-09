@@ -251,7 +251,7 @@ as in `urgrep-command'."
       (save-match-data
         ;; Hide excessive part of rgrep command.
         (when (string-match
-               "^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
+               (rx bol "find " (group (*? nonl)) " " (or "-exec" "-print"))
                command)
           (put-text-property (match-beginning 1) (match-end 1)
                              'abbreviated-command t command)))
@@ -708,13 +708,20 @@ line number."
     (looking-at "[0-9]+\\([=-]\\).*$")))
 
 (defvar urgrep-mode-font-lock-keywords
-  `(("^Urgrep started.*"
+  `(((rx bol "Urgrep started" (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
-    ("^Urgrep finished with \\(?:\\(\\(?:[0-9]+ \\)?match\\(?:es\\)? found\\)\\|\\(no matches found\\)\\).*"
+    ((rx bol "Urgrep finished with "
+         (group (or (seq (? (+ digit) " ") (or "match" "matches"))
+                    "no matches")
+                " found")
+         (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
      (1 'urgrep-match-count nil t)
      (2 'compilation-warning nil t))
-    ("^Urgrep \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
+    ((rx bol "Urgrep "
+         (group (or "exited abnormally" "interrupt" "killed" "terminated"))
+         (? (* nonl) " with code " (group (+ digit)))
+         (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
      (1 'compilation-error)
      (2 'compilation-error nil t))
@@ -772,21 +779,22 @@ versions, it's half-open.  Use this to adjust the value as needed in
 (defconst urgrep-regexp-alist
   ;; XXX: Try to rely on ANSI escapes as with the match highlight?
   `(;; Ungrouped matches
-    (,(concat
-       "^\\(?:"
-       ;; Parse using a null terminator after the filename when possible.
-       "\\(?1:[^\0\n]+\\)\\(?3:\0\\)\\(?2:[0-9]+\\)"
-       "\\|"
-       ;; Fallback if we can't use null terminators after the filename.
-       ;; Use [1-9][0-9]* rather than [0-9]+ to allow ":0" in filenames.
-       "\\(?1:[^\n]+?[^\n/]\\):\\(?2:[1-9][0-9]*\\)"
-       "\\):")
+    (,(rx bol
+          (or ;; Parse using a null terminator after the filename when possible.
+              (seq (group-n 1 (+ (not (any "\0" "\n"))))
+                   (group-n 3 "\0") (group-n 2 (+ digit)))
+              ;; Fallback if we can't use null terminators after the filename.
+              ;; Require line numbers to start with a nonzero digit to allow
+              ;; ":0" in filenames.
+              (seq (group-n 1 (+? nonl) (not (any "\n" "/")))
+                   ":" (group-n 2 (any "1-9") (* digit))))
+          ":")
      1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)
      nil nil
      (3 '(face nil display ":")))
 
     ;; Grouped matches
-    ("^\\([1-9][0-9]*\\):"
+    (,(rx bol (group (any "1-9") (* digit)) ":")
      ,#'urgrep--grouped-filename 1
      (,#'urgrep--column-begin . ,#'urgrep--column-end)))
   "Regexp used to match results.
@@ -823,39 +831,48 @@ See `compilation-error-regexp-alist' for format details.")
 (defun urgrep-filter ()
   "Handle match highlighting escape sequences inserted by the process.
 This function is called from `compilation-filter-hook'."
-  (save-excursion
-    (forward-line 0)
-    (let ((end (point)) beg)
-      (goto-char compilation-filter-start)
+  (rx-let ((ansi-sgr (&rest rest)
+                     (seq "\033[" rest "m")))
+    (save-excursion
       (forward-line 0)
-      (setq beg (point))
-      ;; Only operate on whole lines so we don't get caught with part of an
-      ;; escape sequence in one chunk and the rest in another.
-      (when (< (point) end)
-        (setq end (copy-marker end))
-        ;; Highlight matches and delete ANSI escapes.
-        (while (re-search-forward
-                (concat "\\(?:"
-                        "\033\\[0?1;31m"      ; Find the escapes together...
-                        "\\|"
-                        "\033\\[1m\033\\[31m" ; ... or apart.
-                        "\\)\\(.*?\n?\\)\033\\[0?m")
-                end 1)
-          (replace-match
-           (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-match)
-           t t)
-          (cl-incf urgrep-num-matches-found))
-        ;; Highlight matching filenames and delete ANSI escapes.
-        (goto-char beg)
-        (while (re-search-forward "\033\\[35m\\(.*?\\)\033\\[0?m" end 1)
-          (replace-match
-           (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
-                       'urgrep-file-name t)
-           t t))
-        ;; Delete all remaining escape sequences.
-        (goto-char beg)
-        (while (re-search-forward "\033\\[[0-9;]*[mK]" end 1)
-          (replace-match "" t t))))))
+      (let ((end (point)) beg)
+        (goto-char compilation-filter-start)
+        (forward-line 0)
+        (setq beg (point))
+        ;; Only operate on whole lines so we don't get caught with part of an
+        ;; escape sequence in one chunk and the rest in another.
+        (when (< (point) end)
+          (setq end (copy-marker end))
+          ;; Highlight matches and delete ANSI escapes.
+          (while (re-search-forward
+                  (rx (or ;; Find the escapes together...
+                       (ansi-sgr (or "01" "1") ";31")
+                       ;; ... or apart.
+                       (seq (ansi-sgr (or "01" "1"))
+                            (ansi-sgr "31")))
+                      (group (*? nonl) (? "\n"))
+                      (ansi-sgr (? "0")))
+                  end 1)
+            (replace-match
+             (propertize (match-string 1) 'face nil
+                         'font-lock-face 'urgrep-match)
+             t t)
+            (cl-incf urgrep-num-matches-found))
+          ;; Highlight matching filenames and delete ANSI escapes.
+          (goto-char beg)
+          (while (re-search-forward
+                  (rx (ansi-sgr "35") (group (*? nonl)) (ansi-sgr (? "0")))
+                  end 1)
+            (replace-match
+             (propertize (match-string 1) 'face nil 'font-lock-face 'urgrep-hit
+                         'urgrep-file-name t)
+             t t))
+          ;; Delete all remaining escape sequences.
+          (goto-char beg)
+          (while (re-search-forward
+                  (rx "\033[" (* (any digit ";")) (any "m" "K"))
+                  end 1)
+            (replace-match "" t t)))))))
 
 (define-compilation-mode urgrep-mode "Urgrep"
   "A compilation mode for various grep-like tools."
