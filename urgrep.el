@@ -709,20 +709,19 @@ line number."
     (looking-at "[0-9]+\\([=-]\\).*$")))
 
 (defvar urgrep-mode-font-lock-keywords
-  `(((rx bol "Urgrep started" (* nonl))
+  `((,(rx bol "Urgrep started" (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t))
-    ((rx bol "Urgrep finished with "
-         (group (or (seq (? (+ digit) " ") (or "match" "matches"))
-                    "no matches")
-                " found")
-         (* nonl))
+    (,(rx bol "Urgrep finished with "
+          (or (group (? (+ digit) " ") (or "match" "matches") " found")
+              (group "no matches found"))
+          (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
      (1 'urgrep-match-count nil t)
      (2 'compilation-warning nil t))
-    ((rx bol "Urgrep "
-         (group (or "exited abnormally" "interrupt" "killed" "terminated"))
-         (? (* nonl) " with code " (group (+ digit)))
-         (* nonl))
+    (,(rx bol "Urgrep "
+          (group (or "exited abnormally" "interrupt" "killed" "terminated"))
+          (? (* nonl) " with code " (group (+ digit)))
+          (* nonl))
      (0 '(face nil compilation-message nil help-echo nil mouse-face nil) t)
      (1 'compilation-error)
      (2 'compilation-error nil t))
