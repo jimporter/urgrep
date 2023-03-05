@@ -4,7 +4,7 @@
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
-;; Version: 0.1-dev
+;; Version: 0.1-git
 ;; Keywords:
 ;; Package-Requires: ((emacs "27.1") (project "0.2.0"))
 
