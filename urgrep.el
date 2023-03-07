@@ -5,8 +5,10 @@
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
 ;; Version: 0.1-git
-;; Keywords:
+;; Keywords: grep, search
 ;; Package-Requires: ((emacs "27.1") (project "0.2.0"))
+
+;; This file is NOT part of GNU Emacs.
 
 ;; This program is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by the Free
