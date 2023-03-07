@@ -3,7 +3,10 @@
 ;; Copyright (C) 2021-2023 Jim Porter
 
 ;; Author: Jim Porter
+;; URL: https://github.com/jimporter/urgrep
 ;; Keywords: tests
+
+;; This file is NOT part of GNU Emacs.
 
 ;; This program is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by the Free
@@ -24,12 +27,14 @@
 
 ;;; Code:
 
-;; FIXME: Work around Emacs bug#58265.
+(require 'ert)
+(require 'tramp)
+
 (let ((orig-home (getenv "HOME")))
-  (require 'ert)
-  (require 'tramp)
   (require 'ert-x)
-  (setenv "HOME" orig-home))
+  ;; Work around Emacs bug#58265.
+  (when (< emacs-major-version 29)
+    (setenv "HOME" orig-home)))
 
 (unless (fboundp 'always)
   (defun always (&rest _) t))
