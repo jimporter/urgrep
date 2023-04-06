@@ -1229,7 +1229,10 @@ Recursively search for PATTERN within PATH.")
          (error "Can't use plain urgrep with a non-default directory yet"))
        (setq options (nconc '(:color nil) options))
        (throw 'eshell-replace-command
-              (let ((cmd (apply #'urgrep-command query options)))
+              (let* (;; Ensure we generate a POSIX shell-like command so that
+                     ;; Eshell can (hopefully) parse it correctly.
+                     (system-type 'gnu/linux)
+                     (cmd (apply #'urgrep-command query options)))
                 (eshell-parse-command (concat "*" cmd))))))))
 
 (provide 'urgrep)
