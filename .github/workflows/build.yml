@@ -19,6 +19,9 @@ jobs:
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
+      - name: Install dependencies
+        run: |
+          make install-deps
       - name: Run tests
         run: |
           make check

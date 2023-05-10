@@ -6,7 +6,7 @@
 ;; URL: https://github.com/jimporter/urgrep
 ;; Version: 0.1-git
 ;; Keywords: grep, search
-;; Package-Requires: ((emacs "27.1") (project "0.2.0"))
+;; Package-Requires: ((emacs "27.1") (compat "29.1.0.1") (project "0.3.0"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'compat)
 (require 'compile)
 (require 'esh-opt)
 (require 'generator)
@@ -112,23 +113,6 @@ The currently-used tool can be inspected from the hook via
 
 
 ;; Urgrep utility functions
-
-;; `format-prompt' was added in Emacs 28.1.
-(defalias 'urgrep--format-prompt
-  (if (fboundp 'format-prompt)
-      #'format-prompt
-    (lambda (prompt default &rest format-args)
-      (concat
-       (apply #'format prompt format-args)
-       (when default
-         (format " (default %s)" default))
-       ": "))))
-
-;; `project-root' was added in project.el 0.3.0 (Emacs 28.1).
-(defalias 'urgrep--project-root
-  (if (fboundp 'project-root)
-      #'project-root
-    (lambda (project) (car (project-roots project)))))
 
 (defun urgrep--convert-regexp (expr from-syntax to-syntax)
   "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
@@ -472,7 +456,7 @@ This caches the default tool per-host in `urgrep--host-defaults'."
             (when-let (((and tool-vc-backend (not vc-backend-name)))
                        (proj (project-current)))
               (setq vc-backend-name (vc-responsible-backend
-                                     (urgrep--project-root proj))))
+                                     (project-root proj))))
             ;; If we find the executable (and it's for the right VC
             ;; backend, if relevant), cache it and then return it.
             (when (and (executable-find tool-executable t)
@@ -956,7 +940,7 @@ point."
   "Return the prompt to use when asking for the search query.
 This depends on the current values of various urgrep options.  DEFAULT
 indicates the default query, if any."
-  (urgrep--format-prompt
+  (format-prompt
    (concat
     "Search "
     (if urgrep-search-regexp "regexp" "string")
@@ -1110,7 +1094,7 @@ value is 4, return the current directory.  Otherwise, prompt for the
 directory."
   (cond
    ((not arg) (let ((proj (project-current)))
-                (if proj (urgrep--project-root proj) default-directory)))
+                (if proj (project-root proj) default-directory)))
    ((= (prefix-numeric-value arg) 4) default-directory)
    (t (read-directory-name "In directory: " nil nil t))))
 

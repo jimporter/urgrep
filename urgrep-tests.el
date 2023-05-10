@@ -27,6 +27,7 @@
 
 ;;; Code:
 
+(require 'compat)
 (require 'ert)
 (require 'tramp)
 
@@ -35,9 +36,6 @@
   ;; Work around Emacs bug#58265.
   (when (< emacs-major-version 29)
     (setenv "HOME" orig-home)))
-
-(unless (fboundp 'always)
-  (defun always (&rest _) t))
 
 (defun urgrep-tests/remote-accessible-p ()
   "Return whether a test involving remote files can proceed."
