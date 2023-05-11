@@ -29,7 +29,8 @@
 
 ;;; Code:
 
-(require 'wgrep)
+(require 'text-property-search)
+;;(require 'wgrep)
 
 (defvar urgrep-wgrep--grouped-result-regexp
   (concat "^\\(?:"
@@ -59,6 +60,8 @@ displaying context.  Group 1 is unused.")
 Group 1 is the filename, group 2 is the line number, and group 3 is the \"--\"
 separator used when displaying context.")
 
+(declare-function wgrep-construct-filename-property "wgrep" (filename))
+
 (defun urgrep-wgrep--propertize-lines (begin end &optional file-name)
   "Apply wgrep properties to result lines between BEGIN and END.
 If END is nil, continue to the end of the (narrowed) buffer.
@@ -78,10 +81,9 @@ grouped results; if nil, assume the results are ungrouped."
         ;; If results are ungrouped, mark the filename with
         ;; `wgrep-construct-filename-property'.
         (unless file-name
-          (let ((this-file (match-string-no-properties 1)))
-            (add-text-properties
-             (match-beginning 1) (match-end 1)
-             (list (wgrep-construct-filename-property file-name) file-name))))
+          (add-text-properties
+           (match-beginning 1) (match-end 1)
+           (list (wgrep-construct-filename-property file-name) file-name)))
         ;; Mark the line with the filename and line number.
         (add-text-properties
          (match-beginning 0) (match-end 0)
@@ -138,6 +140,10 @@ This lets wgrep know what to ignore."
 ;;;###autoload
 (defun urgrep-wgrep-setup ()
   "Set up a urgrep buffer to use wgrep."
+  (require 'wgrep)
+  (declare-function wgrep-setup-internal "wgrep" nil)
+  (defvar wgrep-header/footer-parser)
+  (defvar wgrep-results-parser)
   (setq-local wgrep-header/footer-parser #'urgrep-wgrep-header/footer-parser
               wgrep-results-parser #'urgrep-wgrep-results-parser)
   (wgrep-setup-internal))

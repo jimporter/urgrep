@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         emacs-version: ['27.1', '27.2', '28.1', '28.2', 'snapshot']
+        action: ['check', 'lint']
 
       fail-fast: false
 
@@ -22,6 +23,6 @@ jobs:
       - name: Install dependencies
         run: |
           make install-deps
-      - name: Run tests
+      - name: Run ${{ matrix.action }}
         run: |
-          make check
+          make ${{ matrix.action }}

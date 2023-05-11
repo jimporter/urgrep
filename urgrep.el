@@ -34,11 +34,11 @@
 (require 'cl-lib)
 (require 'compat)
 (require 'compile)
-(require 'esh-opt)
 (require 'generator)
 (require 'grep)
 (require 'project)
 (require 'text-property-search)
+(require 'xref)                         ; For `xref--regexp-to-extended'.
 
 (defgroup urgrep nil
   "Run a grep-like command and display the results."
@@ -122,7 +122,6 @@ The currently-used tool can be inspected from the hook via
          ;; function for converting between basic and extended regexps.  It
          ;; might be wise to use our own implementation, but this should work
          ;; for now.
-         (require 'xref)
          (xref--regexp-to-extended expr))
         (t expr)))
 
@@ -165,6 +164,7 @@ and escapes null characters."
   "Quote ARGUMENT if needed for passing to an inferior shell.
 This works as `shell-quote-argument', but avoids quoting unnecessarily
 for MS shells."
+  (declare-function w32-shell-dos-semantics "w32-fns" nil)
   (if (and (or (eq system-type 'ms-dos)
                (and (eq system-type 'windows-nt) (w32-shell-dos-semantics)))
            (not (string-match "[^-0-9a-zA-Z_./=]" argument)))
@@ -1143,11 +1143,17 @@ to edit the command before running it."
            directory (cadr (cl-member :tool query)))))
   (urgrep--start command command (urgrep-get-tool tool) directory))
 
+(cl-eval-when (compile)
+  (require 'esh-cmd)
+  (require 'esh-opt)
+  (require 'em-unix))
+
 ;;;###autoload
 (defun eshell/urgrep (&rest args)
   "Recursively search for a pattern, passing ARGS.
 This is meant to be used as a command in Eshell."
   (require 'esh-cmd)
+  (require 'esh-opt)
   (require 'em-unix)
   (eshell-eval-using-options
    "urgrep" args

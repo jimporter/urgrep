@@ -30,6 +30,7 @@
 (require 'compat)
 (require 'ert)
 (require 'tramp)
+(require 'urgrep)
 
 (let ((orig-home (getenv "HOME")))
   (require 'ert-x)
@@ -42,6 +43,7 @@
   (let ((inhibit-message t))
     (ignore-errors
       (and
+       (boundp 'ert-remote-temporary-file-directory)
        (file-remote-p ert-remote-temporary-file-directory)
        (file-directory-p ert-remote-temporary-file-directory)
        (file-writable-p ert-remote-temporary-file-directory)))))
@@ -547,6 +549,7 @@ joined to compare against COMMAND."
 
 (ert-deftest urgrep-tests/get-tool/remote-host ()
   (skip-unless (urgrep-tests/remote-accessible-p))
+  (defvar ert-remote-temporary-file-directory)
   (connection-local-set-profile-variables
    'urgrep-test-ripgrep
    '((urgrep-preferred-tools . (ripgrep))))
