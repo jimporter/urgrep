@@ -30,7 +30,6 @@
 ;;; Code:
 
 (require 'text-property-search)
-;;(require 'wgrep)
 
 (defvar urgrep-wgrep--grouped-result-regexp
   (concat "^\\(?:"
