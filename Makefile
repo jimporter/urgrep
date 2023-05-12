@@ -60,7 +60,7 @@ check:
 	$(EMACS) -Q --batch \
 	  --eval '(setq package-user-dir (getenv "DEPS_DIR"))' \
 	  --eval '(package-activate-all)' \
-	  -L . -l urgrep -l urgrep-tests \
+	  -L . -l urgrep-tests \
 	  --eval '(ert-run-tests-batch-and-exit t)'
 
 .PHONY: clean
