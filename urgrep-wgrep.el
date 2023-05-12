@@ -147,7 +147,6 @@ This lets wgrep know what to ignore."
               wgrep-results-parser #'urgrep-wgrep-results-parser)
   (wgrep-setup-internal))
 
-;;;###autoload
 (add-hook 'urgrep-setup-hook #'urgrep-wgrep-setup)
 
 (defun urgrep-wgrep-unload-function ()
