@@ -29,32 +29,29 @@
 
 ;;; Code:
 
+(require 'urgrep)
 (require 'text-property-search)
 
 (defvar urgrep-wgrep--grouped-result-regexp
-  (concat "^\\(?:"
-          ;; A match or context line.
-          "\\(?2:[1-9][0-9]*\\)[:=-]"
-          "\\|"
-          ;; A separator line.
-          "\\(?3:--$\\)"
-          "\\)")
+  (rx bol (or ;; A match or context line.
+              (seq (group-n 2 urgrep-regular-number) (any ":=-"))
+              ;; A separator line.
+              (group-n 3 "--" eol)))
   "The regexp to use to match results using grouped output.
 Group 2 is the line number, and group 3 is the \"--\" separator used when
 displaying context.  Group 1 is unused.")
 
 (defvar urgrep-wgrep--ungrouped-result-regexp
-  (concat "^\\(?:"
-          ;; A match or context line using a null terminator after the filename.
-          "\\(?1:[^\0\n]+\\)\0\\(?2:[0-9]+\\)[:=-]"
-          "\\|"
-          ;; A match or context line without a null terminator; see also
-          ;; `urgrep-regexp-alist'.
-          "\\(?1:[^\n]*?[^\n/]\\)[:=-]\\(?2:[1-9][0-9]*\\)[:=-]"
-          "\\|"
-          ;; A separator line.
-          "\\(?3:--$\\)"
-          "\\)")
+  (rx bol (or ;; A match or context line using a null terminator after the
+              ;; filename.
+              (seq (group-n 1 (+ (not (any "\0" "\n")))) "\0"
+                   (group-n 2 (+ digit)) (any ":=-"))
+              ;; A match or context line without a null terminator; see also
+              ;; `urgrep-regexp-alist'.
+              (seq (group-n 1 (+? nonl) (not (any "\n" "/"))) (any ":=-")
+                   (group-n 2 urgrep-regular-number) (any ":=-"))
+              ;; A separator line.
+              (group-n 3 "--" eol)))
     "The regexp to use to match results using ungrouped output.
 Group 1 is the filename, group 2 is the line number, and group 3 is the \"--\"
 separator used when displaying context.")
