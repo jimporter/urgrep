@@ -694,8 +694,7 @@ line number."
                         (+ digit) (group-n 1 (any "=-"))
                         (* nonl) eol)))
     ;; Grouped result.
-    (looking-at (rx (+ digit) (group (any "=-")) (* nonl) eol)
-                "[0-9]+\\([=-]\\).*$")))
+    (looking-at (rx (+ digit) (group (any "=-")) (* nonl) eol))))
 
 (defvar urgrep-mode-font-lock-keywords
   `((,(rx bol "Urgrep started" (* nonl))
