@@ -32,37 +32,54 @@ define INSTALL_SCRIPT
 endef
 export INSTALL_SCRIPT
 
-EMACS_BATCH := $(EMACS) -Q --batch \
+EMACS_DEPS := $(EMACS) \
   --eval '(setq package-user-dir (getenv "DEPS_DIR"))' \
   --eval '(package-activate-all)'
 
-OBJS := $(patsubst %.el,%.elc,$(wildcard *.el))
+AUTOLOADS := urgrep-autoloads.el
+SRCS := $(filter-out $(AUTOLOADS), $(wildcard *.el))
+OBJS := $(patsubst %.el,%.elc,$(SRCS))
 
 .PHONY: all
-all: $(OBJS)
+all: compile autoloads
+
+.PHONY: compile
+compile: $(OBJS)
+
+.PHONY: autoloads
+autoloads: $(AUTOLOADS)
 
 .PHONY: install-deps
 install-deps:
 	@$(EMACS) -Q --batch urgrep.el --eval "$$INSTALL_SCRIPT"
 
+$(AUTOLOADS): $(SRCS)
+	@echo AUTOLOAD $@
+	@$(EMACS) -Q --batch \
+	  --eval '(package-initialize)' \
+	  --eval '(package-generate-autoloads "urgrep" default-directory)'
+
 %.elc: %.el
 	@echo ELC $@
-	@$(EMACS_BATCH) \
+	@$(EMACS_DEPS) -Q --batch \
 	  $(if $(STRICT),--eval '(setq byte-compile-error-on-warn t)') \
 	  -L . --funcall batch-byte-compile $<
 
+.PHONY: run
+run: all
+	$(EMACS_DEPS) -Q -L . \
+	  --eval '(load "$(AUTOLOADS)")'
+
 .PHONY: lint
 lint:
-	@$(MAKE) --always-make STRICT=1 all
+	@$(MAKE) --always-make STRICT=1 compile
 
 .PHONY: check
 check:
-	$(EMACS) -Q --batch \
-	  --eval '(setq package-user-dir (getenv "DEPS_DIR"))' \
-	  --eval '(package-activate-all)' \
+	$(EMACS_DEPS) -Q --batch \
 	  -L . -l urgrep-tests \
 	  --eval '(ert-run-tests-batch-and-exit t)'
 
 .PHONY: clean
 clean:
-	rm -f *.elc
+	rm -f *.elc $(AUTOLOADS)
