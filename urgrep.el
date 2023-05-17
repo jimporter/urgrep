@@ -1147,16 +1147,15 @@ to edit the command before running it."
 
 (cl-eval-when (compile)
   (require 'esh-cmd)
-  (require 'esh-opt)
-  (require 'em-unix))
+  (require 'esh-opt))
+
+;;;###autoload
+(eval-after-load 'esh-cmd '(add-to-list 'eshell-complex-commands "urgrep"))
 
 ;;;###autoload
 (defun eshell/urgrep (&rest args)
   "Recursively search for a pattern, passing ARGS.
 This is meant to be used as a command in Eshell."
-  (require 'esh-cmd)
-  (require 'esh-opt)
-  (require 'em-unix)
   (eshell-eval-using-options
    "urgrep" args
    '(;; Regexp options
@@ -1211,15 +1210,16 @@ Recursively search for PATTERN within PATH.")
                                           options)))
      (when regexp (setq options (nconc `(:regexp ,(car regexp)) options)))
      ;; Run `urgrep'.
-     (if (and (not eshell-plain-grep-behavior)
+     (if (and (not (bound-and-true-p eshell-plain-grep-behavior))
               (eshell-interactive-output-p)
               (not eshell-in-pipeline-p)
               (not eshell-in-subcommand-p))
-         (apply #'urgrep query directory options)
+         (apply #'urgrep query :directory directory options)
        ;; Return the arguments to run directly.
        (when (not (equal directory default-directory))
          (error "Can't use plain urgrep with a non-default directory yet"))
-       (setq options (nconc '(:color nil) options))
+       (unless (eshell-interactive-output-p)
+         (setq options (append '(:color nil) options)))
        (throw 'eshell-replace-command
               (let* (;; Ensure we generate a POSIX shell-like command so that
                      ;; Eshell can (hopefully) parse it correctly.
