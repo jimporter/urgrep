@@ -15,6 +15,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+PACKAGE_NAME := urgrep
+PACKAGE_MAIN := $(PACKAGE_NAME).el
+AUTOLOADS := $(PACKAGE_NAME)-autoloads.el
+SRCS := $(filter-out $(AUTOLOADS), $(wildcard *.el))
+OBJS := $(patsubst %.el,%.elc,$(SRCS))
+TESTS := $(wildcard *-tests.el)
+
 EMACS ?= emacs
 export DEPS_DIR = $(shell realpath .deps)
 
@@ -36,10 +43,6 @@ EMACS_DEPS := $(EMACS) \
   --eval '(setq package-user-dir (getenv "DEPS_DIR"))' \
   --eval '(package-activate-all)'
 
-AUTOLOADS := urgrep-autoloads.el
-SRCS := $(filter-out $(AUTOLOADS), $(wildcard *.el))
-OBJS := $(patsubst %.el,%.elc,$(SRCS))
-
 .PHONY: all
 all: compile autoloads
 
@@ -51,13 +54,14 @@ autoloads: $(AUTOLOADS)
 
 .PHONY: install-deps
 install-deps:
-	@$(EMACS) -Q --batch urgrep.el --eval "$$INSTALL_SCRIPT"
+	@$(EMACS) -Q --batch $(PACKAGE_MAIN) --eval "$$INSTALL_SCRIPT"
 
 $(AUTOLOADS): $(SRCS)
 	@echo AUTOLOAD $@
 	@$(EMACS) -Q --batch \
 	  --eval '(package-initialize)' \
-	  --eval '(package-generate-autoloads "urgrep" default-directory)'
+	  --eval '(package-generate-autoloads "$(PACKAGE_NAME)" \
+	    default-directory)'
 
 %.elc: %.el
 	@echo ELC $@
@@ -76,8 +80,9 @@ lint:
 
 .PHONY: check
 check:
-	$(EMACS_DEPS) -Q --batch \
-	  -L . -l urgrep-tests \
+	@echo TEST $(patsubst %.el,%,$(TESTS))
+	@$(EMACS_DEPS) -Q --batch \
+	  -L . $(patsubst %.el,-l %,$(TESTS)) \
 	  --eval '(ert-run-tests-batch-and-exit t)'
 
 .PHONY: clean
