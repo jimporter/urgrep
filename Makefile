@@ -60,8 +60,7 @@ $(AUTOLOADS): $(SRCS)
 	@echo AUTOLOAD $@
 	@$(EMACS) -Q --batch \
 	  --eval '(package-initialize)' \
-	  --eval '(package-generate-autoloads "$(PACKAGE_NAME)" \
-	    default-directory)'
+	  --eval '(package-generate-autoloads "$(PACKAGE_NAME)" default-directory)'
 
 %.elc: %.el
 	@echo ELC $@
