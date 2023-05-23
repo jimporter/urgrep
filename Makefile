@@ -56,11 +56,13 @@ autoloads: $(AUTOLOADS)
 install-deps:
 	@$(EMACS) -Q --batch $(PACKAGE_MAIN) --eval "$$INSTALL_SCRIPT"
 
+$(AUTOLOADS): GENERATE_AUTOLOADS = '$\
+  (package-generate-autoloads "$(PACKAGE_NAME)" default-directory)'
 $(AUTOLOADS): $(SRCS)
 	@echo AUTOLOAD $@
 	@$(EMACS) -Q --batch \
 	  --eval '(package-initialize)' \
-	  --eval '(package-generate-autoloads "$(PACKAGE_NAME)" default-directory)'
+	  --eval $(GENERATE_AUTOLOADS)
 
 %.elc: %.el
 	@echo ELC $@
