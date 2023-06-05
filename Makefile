@@ -18,9 +18,10 @@
 PACKAGE_NAME := urgrep
 PACKAGE_MAIN := $(PACKAGE_NAME).el
 AUTOLOADS := $(PACKAGE_NAME)-autoloads.el
-SRCS := $(filter-out $(AUTOLOADS), $(wildcard *.el))
-OBJS := $(patsubst %.el,%.elc,$(SRCS))
 TESTS := $(wildcard *-tests.el)
+TEST_OBJS := $(patsubst %.el,%.elc,$(TESTS))
+SRCS := $(filter-out $(AUTOLOADS) $(TESTS), $(wildcard *.el))
+OBJS := $(patsubst %.el,%.elc,$(SRCS))
 
 EMACS ?= emacs
 export DEPS_DIR = $(shell realpath .deps)
@@ -80,7 +81,7 @@ lint:
 	@$(MAKE) --always-make STRICT=1 compile
 
 .PHONY: check
-check:
+check: $(OBJS) $(TEST_OBJS)
 	@echo TEST $(patsubst %.el,%,$(TESTS))
 	@$(EMACS_DEPS) -Q --batch \
 	  -L . $(patsubst %.el,-l %,$(TESTS)) \
