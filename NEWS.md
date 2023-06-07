@@ -1,6 +1,6 @@
 # Urgrep News
 
-## v0.1.1 (in progress)
+## v0.1.1 (2023-06-07)
 
 - Fix Eshell integration
 
