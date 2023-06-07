@@ -29,14 +29,17 @@
 
 (require 'compat)
 (require 'ert)
+(require 'eshell)
+(require 'esh-mode)
 (require 'tramp)
 (require 'urgrep)
 
+;; Work around Emacs bug#58265.
 (let ((orig-home (getenv "HOME")))
   (require 'ert-x)
-  ;; Work around Emacs bug#58265.
   (when (< emacs-major-version 29)
     (setenv "HOME" orig-home)))
+(eval-when-compile (require 'ert-x))
 
 (defun urgrep-tests/remote-accessible-p ()
   "Return whether a test involving remote files can proceed."
@@ -69,6 +72,47 @@ joined to compare against COMMAND."
     (should (equal (compilation--loc->line loc) line))
     (should (equal (compilation--loc->col loc)
                    (- match-start text-start)))))
+
+;; Eshell utilities:
+
+;; These are adapted from test/lisp/eshell/eshell-tests-helpers.el in Emacs.
+
+(defvar eshell-history-file-name)
+(defvar eshell-last-dir-ring-file-name)
+
+(defmacro with-temp-eshell (&rest body)
+  "Evaluate BODY in a temporary Eshell buffer."
+  `(save-current-buffer
+     (ert-with-temp-directory eshell-directory-name
+       (let* (;; We want no history file, so prevent Eshell from falling
+              ;; back on $HISTFILE.
+              (process-environment (cons "HISTFILE" process-environment))
+              (eshell-history-file-name nil)
+              (eshell-last-dir-ring-file-name nil)
+              (eshell-buffer (eshell t)))
+         (unwind-protect
+             (with-current-buffer eshell-buffer
+               ,@body)
+           (let (kill-buffer-query-functions)
+             (kill-buffer eshell-buffer)))))))
+
+(defun eshell-match-command-output (command regexp)
+  "Insert a COMMAND at the end of the buffer and match the output with REGEXP."
+  ;; Execute COMMAND.
+  (goto-char eshell-last-output-end)
+  (insert-and-inherit command)
+  (eshell-send-input)
+  ;; Wait until the command has completed.
+  (let ((start (current-time)))
+    (while (eshell-interactive-process)
+      (when (> (float-time (time-since start)) 5)
+        (error "timeout"))
+      (accept-process-output)))
+  ;; Check the result.
+  (should (string-match-p regexp
+                          (buffer-substring-no-properties
+                           (eshell-beginning-of-output)
+                           (eshell-end-of-output)))))
 
 ;;; Tests:
 
@@ -609,5 +653,18 @@ joined to compare against COMMAND."
   (re-search-forward "urgrep-tests.el")
   (beginning-of-line 2)
   (urgrep-tests/check-match-at-point))
+
+(ert-deftest urgrep-tests/eshell/urgrep-buffer ()
+  (with-temp-eshell
+   (eshell-match-command-output "urgrep universal" "\\`#<buffer .*>\n")
+   (with-current-buffer eshell-last-command-result
+     (while (get-buffer-process (current-buffer))
+       (accept-process-output))
+     (should (eq major-mode #'urgrep-mode)))))
+
+(ert-deftest urgrep-tests/eshell/inline ()
+  (skip-unless (executable-find "cat"))
+  (with-temp-eshell
+   (eshell-match-command-output "urgrep universal | cat" "^README.md\n")))
 
 ;;; urgrep-tests.el ends here
