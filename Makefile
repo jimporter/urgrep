@@ -81,7 +81,7 @@ lint:
 	@$(MAKE) --always-make STRICT=1 compile
 
 .PHONY: check
-check: $(OBJS) $(TEST_OBJS)
+check: $(if $(NO_COMPILE),,$(OBJS) $(TEST_OBJS))
 	@echo TEST $(patsubst %.el,%,$(TESTS))
 	@$(EMACS_DEPS) -Q --batch \
 	  -L . $(patsubst %.el,-l %,$(TESTS)) \
