@@ -4,9 +4,9 @@
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
-;; Version: 0.1.2-git
+;; Version: 0.2.0-git
 ;; Keywords: grep, search
-;; Package-Requires: ((urgrep "0.1.2-git") (wgrep "2.3.4"))
+;; Package-Requires: ((urgrep "0.2.0-git") (wgrep "2.3.4"))
 
 ;; This file is NOT part of GNU Emacs.
 

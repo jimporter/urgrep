@@ -39,6 +39,7 @@ Isearch-like key bindings to let you modify the search's behavior:
 |:----------------------------|:-----------------------------------------|
 | <kbd>M-s</kbd> <kbd>r</kbd> | Toggle regexp search                     |
 | <kbd>M-s</kbd> <kbd>c</kbd> | Toggle case sensitivity                  |
+| <kbd>M-s</kbd> <kbd>h</kbd> | Toggle searching in hidden files         |
 | <kbd>M-s</kbd> <kbd>f</kbd> | Set wildcards to filter files¹           |
 | <kbd>M-s</kbd> <kbd>C</kbd> | Set number of lines of context²          |
 | <kbd>M-s</kbd> <kbd>B</kbd> | Set number of lines of leading context²  |
