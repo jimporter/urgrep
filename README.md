@@ -114,8 +114,11 @@ arguments. For more information, consult the docstring for `urgrep-command`.
 
 ## Contributing
 
-Feedback is welcome, but it's a bit early for code contributions. Thanks for the
-thought, though! (Hopefully this will change after not too long.)
+This project [assigns copyright][fsf-copyright] to the Free Software Foundation,
+so if you'd like to contribute code, please make sure you've filled out the
+assignment form and that it's up to date. In any case, before submitting
+patches, it's probably best to [file an issue][new-issue] first so that we
+can discuss the best way to do things.
 
 [elpa-image]: https://elpa.gnu.org/packages/urgrep.svg
 [elpa-link]: https://elpa.gnu.org/packages/urgrep.html
@@ -127,3 +130,5 @@ thought, though! (Hopefully this will change after not too long.)
 [grep]: https://www.gnu.org/software/grep/
 [find]: https://www.gnu.org/software/findutils/
 [wgrep]: https://github.com/mhayashi1120/Emacs-wgrep
+[fsf-copyright]: https://www.gnu.org/prep/maintain/html_node/Copyright-Papers.html
+[new-issue]: https://github.com/jimporter/urgrep/issues/new
