@@ -620,30 +620,27 @@ If EDIT-COMMAND is non-nil, the search can be edited."
                     query)))
     (urgrep--start command query urgrep-current-tool)))
 
-(defvar urgrep-mode-map
-  (let ((map (make-sparse-keymap)))
-    ;; Don't inherit from `compilation-minor-mode-map',
-    ;; because that introduces a menu bar item we don't want.
-    (set-keymap-parent map special-mode-map)
-    (define-key map [mouse-2] #'compile-goto-error)
-    (define-key map [follow-link] 'mouse-face)
-    (define-key map "\C-c\C-c" #'compile-goto-error)
-    (define-key map "\C-m" #'compile-goto-error)
-    (define-key map "\C-o" #'compilation-display-error)
-    (define-key map "\C-c\C-k" #'kill-compilation)
-    (define-key map "\M-n" #'compilation-next-error)
-    (define-key map "\M-p" #'compilation-previous-error)
-    (define-key map "\M-{" #'compilation-previous-file)
-    (define-key map "\M-}" #'compilation-next-file)
-    (define-key map "n" #'next-error-no-select)
-    (define-key map "p" #'previous-error-no-select)
-    (define-key map "{" #'compilation-previous-file)
-    (define-key map "}" #'compilation-next-file)
-    (define-key map "\t" #'compilation-next-error)
-    (define-key map [backtab] #'compilation-previous-error)
-    (define-key map "g" #'urgrep-search-again)
-    map)
-  "Keymap for urgrep buffers.")
+(defvar-keymap urgrep-mode-map
+  ;; Don't inherit from `compilation-minor-mode-map',
+  ;; because that introduces a menu bar item we don't want.
+  :parent special-mode-map
+  "<mouse-2>"     #'compile-goto-error
+  "<follow-link>" 'mouse-face
+  "C-c C-c"       #'compile-goto-error
+  "C-m"           #'compile-goto-error
+  "C-o"           #'compilation-display-error
+  "C-c C-k"       #'kill-compilation
+  "M-n"           #'compilation-next-error
+  "M-p"           #'compilation-previous-error
+  "M-{"           #'compilation-previous-file
+  "M-}"           #'compilation-next-file
+  "n"             #'next-error-no-select
+  "p"             #'previous-error-no-select
+  "{"             #'compilation-previous-file
+  "}"             #'compilation-next-file
+  "TAB"           #'compilation-next-error
+  "<backtab>"     #'compilation-previous-error
+  "g"             #'urgrep-search-again)
 
 (easy-menu-define urgrep-menu-map urgrep-mode-map
   "Menu for urgrep buffers."
@@ -686,13 +683,10 @@ If EDIT-COMMAND is non-nil, the search can be edited."
        :help "Restart search")
       map)))
 
-(defvar urgrep-mode-abbreviation-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [down-mouse-2] 'mouse-set-point)
-    (define-key map [mouse-2] 'grep-find-toggle-abbreviation)
-    (define-key map "\C-m" 'grep-find-toggle-abbreviation)
-    map)
-  "Keymap for urgrep abbreviation buttons.")
+(defvar-keymap urgrep-mode-abbreviation-map
+  "<down-mouse-2>" #'mouse-set-point
+  "<mouse-2>"      #'grep-find-toggle-abbreviation
+  "C-m"            #'grep-find-toggle-abbreviation)
 
 (defconst urgrep-mode-line-matches
   `(" [" (:propertize (:eval (int-to-string urgrep-num-matches-found))
@@ -1078,17 +1072,15 @@ future searches."
   (setq urgrep-file-wildcards files)
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
-(defvar urgrep-minibuffer-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map minibuffer-local-map)
-    (define-key map "\M-sr" #'urgrep-toggle-regexp)
-    (define-key map "\M-sc" #'urgrep-toggle-case-fold)
-    (define-key map "\M-sf" #'urgrep-set-file-wildcards)
-    (define-key map "\M-sh" #'urgrep-toggle-search-hidden-files)
-    (define-key map "\M-sC" #'urgrep-set-context)
-    (define-key map "\M-sB" #'urgrep-set-before-context)
-    (define-key map "\M-sA" #'urgrep-set-after-context)
-    map))
+(defvar-keymap urgrep-minibuffer-map
+  :parent minibuffer-local-map
+  "M-s r" #'urgrep-toggle-regexp
+  "M-s c" #'urgrep-toggle-case-fold
+  "M-s f" #'urgrep-set-file-wildcards
+  "M-s h" #'urgrep-toggle-search-hidden-files
+  "M-s C" #'urgrep-set-context
+  "M-s B" #'urgrep-set-before-context
+  "M-s A" #'urgrep-set-after-context)
 
 (cl-defun urgrep--read-query (initial &key tool (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
