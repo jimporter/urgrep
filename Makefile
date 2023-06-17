@@ -50,6 +50,9 @@ all: compile autoloads
 .PHONY: compile
 compile: $(OBJS)
 
+.PHONY: compile-tests
+compile-tests: $(TEST_OBJS)
+
 .PHONY: autoloads
 autoloads: $(AUTOLOADS)
 
@@ -78,7 +81,7 @@ run: all
 
 .PHONY: lint
 lint:
-	@$(MAKE) --always-make STRICT=1 compile
+	@$(MAKE) --always-make STRICT=1 compile compile-tests
 
 .PHONY: check
 check: $(if $(NO_COMPILE),,$(OBJS) $(TEST_OBJS))
