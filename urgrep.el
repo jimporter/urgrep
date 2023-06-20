@@ -884,7 +884,7 @@ This function is called from `compilation-filter-hook'."
   "A compilation mode for various grep-like tools."
   (setq-local tool-bar-map urgrep-mode-tool-bar-map
               compilation-process-setup-function #'urgrep-process-setup
-              compilation-error-face #'urgrep-hit
+              compilation-error-face 'urgrep-hit
               compilation-error-regexp-alist urgrep-regexp-alist
               compilation-mode-line-errors urgrep-mode-line-matches
               compilation-disable-input t
