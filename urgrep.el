@@ -883,13 +883,13 @@ This function is called from `compilation-filter-hook'."
 (define-compilation-mode urgrep-mode "Urgrep"
   "A compilation mode for various grep-like tools."
   (setq-local tool-bar-map urgrep-mode-tool-bar-map
-              compilation-process-setup-function 'urgrep-process-setup
-              compilation-error-face 'urgrep-hit
+              compilation-process-setup-function #'urgrep-process-setup
+              compilation-error-face #'urgrep-hit
               compilation-error-regexp-alist urgrep-regexp-alist
               compilation-mode-line-errors urgrep-mode-line-matches
               compilation-disable-input t
               compilation-error-screen-columns nil)
-  (add-hook 'compilation-filter-hook 'urgrep-filter nil t))
+  (add-hook 'compilation-filter-hook #'urgrep-filter nil t))
 
 (defun urgrep--hide-abbreviations (command)
   "If `urgrep-abbreviate-command' is non-nil, hide abbreviations in COMMAND."
