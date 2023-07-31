@@ -1,3 +1,4 @@
-/.deps
 *.elc
-urgrep-autoloads.el
+/.deps
+/urgrep-autoloads.el
+/urgrep-pkg.el
