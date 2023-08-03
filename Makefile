@@ -18,9 +18,10 @@
 PACKAGE_NAME := urgrep
 PACKAGE_MAIN := $(PACKAGE_NAME).el
 AUTOLOADS := $(PACKAGE_NAME)-autoloads.el
+PKG_FILE := $(PACKAGE_NAME)-pkg.el
 TESTS := $(wildcard *-tests.el)
 TEST_OBJS := $(patsubst %.el,%.elc,$(TESTS))
-SRCS := $(filter-out $(AUTOLOADS) $(TESTS), $(wildcard *.el))
+SRCS := $(filter-out $(AUTOLOADS) $(PKG_FILE) $(TESTS), $(wildcard *.el))
 OBJS := $(patsubst %.el,%.elc,$(SRCS))
 
 EMACS ?= emacs
@@ -92,4 +93,4 @@ check: $(if $(NO_COMPILE),,$(OBJS) $(TEST_OBJS))
 
 .PHONY: clean
 clean:
-	rm -f *.elc $(AUTOLOADS)
+	rm -f *.elc $(AUTOLOADS) $(PKG_FILE)
