@@ -1159,10 +1159,10 @@ searched."
   (interactive
    (let ((directory (urgrep--read-directory current-prefix-arg)))
      (urgrep--read-query nil :directory directory)))
-  (let* ((full-query (cons query rest))
-         (command (apply #'urgrep-command full-query))
-         (tool (urgrep-get-tool (cadr (cl-member :tool full-query))))
-         (directory (cadr (cl-member :directory full-query))))
+  (let* ((tool (urgrep-get-tool (plist-get rest :tool)))
+         (directory (plist-get rest :directory))
+         (full-query (cons query rest))
+         (command (apply #'urgrep-command full-query)))
     (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
@@ -1175,7 +1175,7 @@ to edit the command before running it."
    (let* ((directory (urgrep--read-directory current-prefix-arg))
           (query (urgrep--read-query nil :directory directory)))
      (list (urgrep--read-command (apply #'urgrep-command query))
-           directory (cadr (cl-member :tool query)))))
+           directory (plist-get (cdr query) :tool))))
   (urgrep--start command command (urgrep-get-tool tool) directory))
 
 (cl-eval-when (compile)
