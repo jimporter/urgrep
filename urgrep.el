@@ -504,7 +504,7 @@ This caches the default tool per-host in `urgrep--host-defaults'."
 
 (defun urgrep-get-tool (&optional tool)
   "Get the urgrep tool for TOOL.
-If TOOL is nil, get the default tool.  If TOOL is a string, look it up
+If TOOL is nil, get the default tool.  If TOOL is a symbol, look it up
 in `urgrep-tools'.  Otherwise, return TOOL as-is."
   (pcase tool
     ('nil (urgrep--get-default-tool))
