@@ -384,7 +384,9 @@ See also `grep-process-setup'."
                               "-c" "color.grep.separator="
                               "grep" "--color"))))
     (grep
-     (executable-name . "grep")
+     ;; Note: We only use these for detecting the usability of find/grep. To
+     ;; modify the programs that actually run, change `grep-find-template'.
+     (executable-name "find" "grep")
      (regexp-syntax bre ere pcre)
      (command-function . ,#'urgrep--rgrep-command)
      (process-setup . ,#'urgrep--rgrep-process-setup)
@@ -402,9 +404,10 @@ See also `grep-process-setup'."
 (defcustom urgrep-preferred-tools nil
   "List of urgrep tools to search for.
 This can be nil to use the default list of tools in `urgrep-tools'
-or a list of tools to try in descending order of preference.  Each tool
-can be either a symbol naming the tool or a cons cell of the tool name
-and the path of the executable."
+or a list of tools to try in descending order of preference. Each
+tool can be either a symbol naming the tool or a cons cell of the
+tool name and the file name of the executable (or a list thereof
+if there are multiple exeuctables)."
   :type `(choice
           (const :tag "Default" nil)
           (repeat :tag "List of tools"
@@ -483,7 +486,8 @@ This caches the default tool per-host in `urgrep--host-defaults'."
                                      (project-root proj))))
             ;; If we find the executable (and it's for the right VC
             ;; backend, if relevant), cache it and then return it.
-            (when (and (executable-find tool-executable t)
+            (when (and (seq-every-p (lambda (i) (executable-find i t))
+                                    (ensure-list tool-executable))
                        (or (not tool-vc-backend)
                            (string= vc-backend-name tool-vc-backend)))
               ;; So long as we didn't examine a VC-specific tool, we can
