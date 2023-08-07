@@ -626,6 +626,20 @@ joined to compare against COMMAND."
       (should (equal (urgrep--get-prop 'executable-name tool) "gf"))
       (should (equal urgrep--cached-tool nil)))))
 
+(ert-deftest urgrep-tests/guess-tool/simple ()
+  (should (equal (car (urgrep--guess-tool "ag query")) 'ag))
+  (should (equal (car (urgrep--guess-tool "rg query")) 'ripgrep)))
+
+(ert-deftest urgrep-tests/guess-tool/list ()
+  (should (equal (car (urgrep--guess-tool "find query")) 'grep)))
+
+(ert-deftest urgrep-tests/guess-tool/fully-qualified ()
+  (should (equal (car (urgrep--guess-tool "/usr/bin/ag query")) 'ag))
+  (should (equal (car (urgrep--guess-tool "/home/me/bin/rg query")) 'ripgrep)))
+
+(ert-deftest urgrep-tests/guess-tool/error ()
+  (should-error (urgrep--guess-tool "goofy query")))
+
 (ert-deftest urgrep-tests/get-tool/remote-host ()
   (skip-unless (urgrep-tests/remote-accessible-p))
   (defvar ert-remote-temporary-file-directory)
@@ -677,7 +691,7 @@ joined to compare against COMMAND."
   (urgrep-tests/check-match-at-point))
 
 (ert-deftest urgrep-tests/urgrep-run-command ()
-  (switch-to-buffer (urgrep-run-command (urgrep-command "urgrep") nil nil))
+  (switch-to-buffer (urgrep-run-command (urgrep-command "urgrep")))
   (while (get-buffer-process (current-buffer))
     (accept-process-output))
   (should (and (equal urgrep-current-tool (urgrep-get-tool))

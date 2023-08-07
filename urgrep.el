@@ -515,6 +515,22 @@ in `urgrep-tools'.  Otherwise, return TOOL as-is."
     ((and (pred symbolp) tool) (assq tool urgrep-tools))
     (tool tool)))
 
+(defun urgrep--guess-tool (command)
+  "Guess the urgrep tool from the specified COMMAND."
+  (catch 'found
+    (when-let ((args (split-string-shell-command
+                      ;; First, split by semicolon, since
+                      ;; `split-string-shell-command' only returns the *last*
+                      ;; command.
+                      (car (split-string command ";"))))
+               (command-name (file-name-nondirectory (car args))))
+      (dolist (tool urgrep-tools)
+        (when (string= command-name
+                       (car (ensure-list (urgrep--get-prop
+                                          'executable-name tool))))
+          (throw 'found tool))))
+    (error "Unable to guess urgrep tool from command")))
+
 (defun urgrep--get-best-syntax (syntax tool)
   "Return the regexp syntax closest to SYNTAX that TOOL supports."
   (let ((tool-syntaxes (urgrep--get-prop 'regexp-syntax tool)))
@@ -1170,17 +1186,21 @@ searched."
     (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
-(defun urgrep-run-command (command directory tool)
+(cl-defun urgrep-run-command (command &key directory tool)
   "Recursively search in DIRECTORY using the given COMMAND.
 
 When called interactively, this behaves like `urgrep', but allows you
 to edit the command before running it."
   (interactive
    (let* ((directory (urgrep--read-directory current-prefix-arg))
-          (query (urgrep--read-query nil :directory directory)))
-     (list (urgrep--read-command (apply #'urgrep-command query))
-           directory (plist-get (cdr query) :tool))))
-  (urgrep--start command command (urgrep-get-tool tool) directory))
+          (query (urgrep--read-query nil :directory directory))
+          (command (urgrep--read-command (apply #'urgrep-command query)))
+          (tool (condition-case nil (urgrep--guess-tool command)
+                  (error (plist-get (cdr query) :tool)))))
+     (list command :directory directory :tool tool)))
+  (let ((tool (if tool (urgrep-get-tool tool)
+                (urgrep--guess-tool command))))
+    (urgrep--start command command tool directory)))
 
 (cl-eval-when (compile)
   (require 'esh-cmd)
