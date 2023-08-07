@@ -37,8 +37,9 @@
 (require 'generator)
 (require 'grep)
 (require 'project)
+(require 'shell)                        ; For `shell--parse-pcomplete-arguments'
 (require 'text-property-search)
-(require 'xref)                         ; For `xref--regexp-to-extended'.
+(require 'xref)                         ; For `xref--regexp-to-extended'
 
 (defgroup urgrep nil
   "Run a grep-like command and display the results."
@@ -118,6 +119,16 @@ The currently-used tool can be inspected from the hook via
 
 
 ;; Urgrep utility functions
+
+;; `format-prompt' was added in Emacs 28.1.
+(defalias 'urgrep--split-string-shell-command
+  (if (fboundp 'split-string-shell-command)
+      #'split-string-shell-command
+    (lambda (string)
+      (with-temp-buffer
+        (insert string)
+        (let ((comint-file-name-quote-list shell-file-name-quote-list))
+          (car (shell--parse-pcomplete-arguments)))))))
 
 (defun urgrep--convert-regexp (expr from-syntax to-syntax)
   "Convert the regexp EXPR from FROM-SYNTAX to TO-SYNTAX."
@@ -518,7 +529,7 @@ in `urgrep-tools'.  Otherwise, return TOOL as-is."
 (defun urgrep--guess-tool (command)
   "Guess the urgrep tool from the specified COMMAND."
   (catch 'found
-    (when-let ((args (split-string-shell-command
+    (when-let ((args (urgrep--split-string-shell-command
                       ;; First, split by semicolon, since
                       ;; `split-string-shell-command' only returns the *last*
                       ;; command.
