@@ -1184,8 +1184,9 @@ searched."
    (let ((default-directory (urgrep--read-directory current-prefix-arg)))
      `(,@(urgrep--read-query nil) :directory ,default-directory)))
   (let* ((tool (urgrep-get-tool (plist-get rest :tool)))
-         (directory (plist-get rest :directory))
-         (full-query `(,query :allow-other-keys t . ,rest))
+         (directory (prog1 (plist-get rest :directory)
+                      (cl-remf rest :directory)))
+         (full-query (cons query rest))
          (command (apply #'urgrep-command full-query)))
     (urgrep--start command full-query tool directory)))
 
