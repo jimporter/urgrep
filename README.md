@@ -44,6 +44,7 @@ Isearch-like key bindings to let you modify the search's behavior:
 | <kbd>M-s</kbd> <kbd>C</kbd> | Set number of lines of context²          |
 | <kbd>M-s</kbd> <kbd>B</kbd> | Set number of lines of leading context²  |
 | <kbd>M-s</kbd> <kbd>A</kbd> | Set number of lines of trailing context² |
+| <kbd>M-s</kbd> <kbd>t</kbd> | Set the search tool                      |
 
 > 1. Prompts with a recursive minibuffer<br>
 > 2. With a numeric prefix argument, set immediately; otherwise, use a recursive

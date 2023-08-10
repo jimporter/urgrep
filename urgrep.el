@@ -973,6 +973,7 @@ rerunning the search."
 (defvar urgrep-command-history nil "History list for urgrep commands.")
 (defvar-local urgrep--search-default nil
   "The default query for a urgrep search, used to update the prompt.")
+(defvar urgrep--minibuffer-tool)
 
 (defun urgrep--search-default ()
   "Return the default thing to search for.
@@ -1014,6 +1015,23 @@ indicates the default query, if any."
   ;; Fix up the point if it ends up in the prompt; this can happen if the point
   ;; was at the beginning of the editable text.
   (if (< (point) (minibuffer-prompt-end)) (goto-char (minibuffer-prompt-end))))
+
+(defun urgrep-set-tool (tool)
+  "Set the TOOL to use for the current search.
+TOOL should be a symbol corresponding to one of the keys in
+`urgrep-tools'."
+  (interactive
+   (let* ((enable-recursive-minibuffers t)
+          (tool-string (completing-read
+                        (format-prompt "Tool" (car urgrep--minibuffer-tool))
+                        (mapcar (lambda (i) (symbol-name (car i)))
+                                urgrep-tools)
+                        nil 'require-match nil nil
+                        (symbol-name (car urgrep--minibuffer-tool)))))
+     (list (unless (string= tool-string "") (intern tool-string)))))
+  (when tool
+    (setq urgrep--minibuffer-tool (urgrep-get-tool tool))
+    (message "using %s" tool)))
 
 (defun urgrep-toggle-regexp ()
   "Toggle whether or not to use regexps for the search query.
@@ -1106,7 +1124,8 @@ future searches."
   "M-s h" #'urgrep-toggle-search-hidden-files
   "M-s C" #'urgrep-set-context
   "M-s B" #'urgrep-set-before-context
-  "M-s A" #'urgrep-set-after-context)
+  "M-s A" #'urgrep-set-after-context
+  "M-s t" #'urgrep-set-tool)
 
 (cl-defun urgrep--read-query (initial &key tool (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
@@ -1118,7 +1137,8 @@ future searches."
 Return a list that can be passed to `urgrep-command' to turn into
 a shell command. TOOL, REGEXP, CASE-FOLD, FILES, GROUP, and
 CONTEXT are as in `urgrep-command'."
-  (let* ((urgrep-search-regexp regexp)
+  (let* ((urgrep--minibuffer-tool (urgrep-get-tool tool))
+         (urgrep-search-regexp regexp)
          (urgrep-case-fold case-fold)
          (urgrep-search-hidden-files hidden)
          (urgrep-file-wildcards files)
@@ -1130,7 +1150,7 @@ CONTEXT are as in `urgrep-command'."
                   (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
                                         'urgrep-search-history default)))
          (query (if (equal query "") default query)))
-    (list query :tool (urgrep-get-tool tool) :regexp urgrep-search-regexp
+    (list query :tool urgrep--minibuffer-tool :regexp urgrep-search-regexp
           :case-fold urgrep-case-fold :hidden urgrep-search-hidden-files
           :files urgrep-file-wildcards :group group
           :context urgrep-context-lines)))
