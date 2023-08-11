@@ -212,13 +212,6 @@ one for each `:abbreviate' key found."
     (when tree (push (urgrep--maybe-shell-quote-argument tree) elems))
     (string-join (nreverse elems) " ")))
 
-(defmacro urgrep--with-killed-local-variable (variable &rest body)
-  "Execute the forms in BODY with VARIABLE temporarily non-local."
-  (declare (indent 1))
-  `(if (local-variable-p ,variable)
-       (with-temp-buffer ,@body)
-     ,@body))
-
 (rx-define urgrep-regular-number (seq (any "1-9") (* digit)))
 
 
@@ -949,9 +942,10 @@ rerunning the search."
                       (file-name-as-directory (expand-file-name directory))
                     default-directory))
   (with-current-buffer
-      ;; Dynamically bind `urgrep-current-tool' so that `urgrep-process-filter'
-      ;; can consult it.
-      (urgrep--with-killed-local-variable 'urgrep-current-tool
+      ;; Run this in a temporary buffer to ensure that we let-bind the default
+      ;; binding for `urgrep-current-tool'.  `urgrep-process-setup' needs to
+      ;; consult this let-binding from another buffer.
+      (with-temp-buffer
         ;; Let-bind `default-directory' here so that the external command knows
         ;; where to search...
         (let ((urgrep-current-tool tool)
@@ -973,7 +967,6 @@ rerunning the search."
 (defvar urgrep-command-history nil "History list for urgrep commands.")
 (defvar-local urgrep--search-default nil
   "The default query for a urgrep search, used to update the prompt.")
-(defvar urgrep--minibuffer-tool)
 
 (defun urgrep--search-default ()
   "Return the default thing to search for.
@@ -1023,14 +1016,14 @@ TOOL should be a symbol corresponding to one of the keys in
   (interactive
    (let* ((enable-recursive-minibuffers t)
           (tool-string (completing-read
-                        (format-prompt "Tool" (car urgrep--minibuffer-tool))
+                        (format-prompt "Tool" (car urgrep-current-tool))
                         (mapcar (lambda (i) (symbol-name (car i)))
                                 urgrep-tools)
                         nil 'require-match nil nil
-                        (symbol-name (car urgrep--minibuffer-tool)))))
+                        (symbol-name (car urgrep-current-tool)))))
      (list (unless (string= tool-string "") (intern tool-string)))))
   (when tool
-    (setq urgrep--minibuffer-tool (urgrep-get-tool tool))
+    (setq-default urgrep-current-tool (urgrep-get-tool tool))
     (message "using %s" tool)))
 
 (defun urgrep-toggle-regexp ()
@@ -1137,23 +1130,28 @@ future searches."
 Return a list that can be passed to `urgrep-command' to turn into
 a shell command. TOOL, REGEXP, CASE-FOLD, FILES, GROUP, and
 CONTEXT are as in `urgrep-command'."
-  (let* ((urgrep--minibuffer-tool (urgrep-get-tool tool))
-         (urgrep-search-regexp regexp)
-         (urgrep-case-fold case-fold)
-         (urgrep-search-hidden-files hidden)
-         (urgrep-file-wildcards files)
-         (urgrep-context-lines context)
-         (default (and (not initial) (urgrep--search-default)))
-         (prompt (urgrep--search-prompt default))
-         (query (minibuffer-with-setup-hook
-                    (lambda () (setq-local urgrep--search-default default))
-                  (read-from-minibuffer prompt initial urgrep-minibuffer-map nil
-                                        'urgrep-search-history default)))
-         (query (if (equal query "") default query)))
-    (list query :tool urgrep--minibuffer-tool :regexp urgrep-search-regexp
-          :case-fold urgrep-case-fold :hidden urgrep-search-hidden-files
-          :files urgrep-file-wildcards :group group
-          :context urgrep-context-lines)))
+  ;; Run this in a temporary buffer to make sure that none of the dynamic
+  ;; variables below that we let-bind have buffer-local bindings. If they did,
+  ;; we wouldn't be able to retrieve the values for them that we set from inside
+  ;; the minibuffer.
+  (with-temp-buffer
+    (let* ((urgrep-current-tool (urgrep-get-tool tool))
+           (urgrep-search-regexp regexp)
+           (urgrep-case-fold case-fold)
+           (urgrep-search-hidden-files hidden)
+           (urgrep-file-wildcards files)
+           (urgrep-context-lines context)
+           (default (and (not initial) (urgrep--search-default)))
+           (prompt (urgrep--search-prompt default))
+           (query (minibuffer-with-setup-hook
+                      (lambda () (setq-local urgrep--search-default default))
+                    (read-from-minibuffer prompt initial urgrep-minibuffer-map
+                                          nil 'urgrep-search-history default)))
+           (query (if (equal query "") default query)))
+      (list query :tool urgrep-current-tool :regexp urgrep-search-regexp
+            :case-fold urgrep-case-fold :hidden urgrep-search-hidden-files
+            :files urgrep-file-wildcards :group group
+            :context urgrep-context-lines))))
 
 (defun urgrep--read-command (command)
   "Read a shell command to use for searching, with initial value COMMAND."
