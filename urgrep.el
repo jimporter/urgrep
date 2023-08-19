@@ -589,7 +589,7 @@ COLOR: non-nil (the default) if the output should use color."
        (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
      ;; Build the command arguments.
      (if cmd-fun
-         (funcall cmd-fun query :tool tool :regexp regexp-syntax
+         (funcall cmd-fun query :tool tool :regexp tool-re-syntax
                   :case-fold case-fold :hidden hidden :files files
                   :group group :context context :color color)
        (let ((arguments (urgrep--get-prop 'arguments tool))
