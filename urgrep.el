@@ -1200,27 +1200,34 @@ Type \\[urgrep-set-file-wildcards] to set a wildcard to filter the files \
 searched."
   (interactive
    (let ((default-directory (urgrep--read-directory current-prefix-arg)))
-     `(,@(urgrep--read-query nil) :directory ,default-directory)))
+     `(,@(urgrep--read-query nil) :default-directory ,default-directory)))
   (let* ((tool (urgrep-get-tool (plist-get rest :tool)))
-         (directory (prog1 (plist-get rest :directory)
-                      (cl-remf rest :directory)))
+         (directory (prog1 (plist-get rest :default-directory)
+                      (cl-remf rest :default-directory)))
          (full-query (cons query rest))
          (command (apply #'urgrep-command full-query)))
     (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
-(cl-defun urgrep-run-command (command &key directory tool)
-  "Recursively search in DIRECTORY using the given COMMAND.
+(cl-defun urgrep-run-command (command &key ((:default-directory directory))
+                                      tool)
+  "Recursively search using the given COMMAND.
+
+TOOL is the search tool corresponding to COMMAND (see
+`urgrep-get-tool'). If nil, guess the tool based on the value of
+COMMAND.
 
 When called interactively, this behaves like `urgrep', but allows you
-to edit the command before running it."
+to edit the command before running it.
+
+\(fn COMMAND &key TOOL)"
   (interactive
    (let* ((default-directory (urgrep--read-directory current-prefix-arg))
           (query (urgrep--read-query nil))
           (command (urgrep--read-command (apply #'urgrep-command query)))
           (tool (condition-case nil (urgrep--guess-tool command)
                   (error (plist-get (cdr query) :tool)))))
-     (list command :directory default-directory :tool tool)))
+     (list command :default-directory default-directory :tool tool)))
   (let ((tool (if tool (urgrep-get-tool tool)
                 (urgrep--guess-tool command))))
     (urgrep--start command command tool directory)))
