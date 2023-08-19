@@ -1291,11 +1291,10 @@ Recursively search for PATTERN within PATH.")
                        (if context-after (string-to-number context-after) 0)))))
          options)
      ;; Fill the options to pass to `urgrep'.
-     (when context (setq options (nconc `(:context ,context) options)))
-     (when group (setq options (nconc `(:group ,(car group)) options)))
-     (when case-fold (setq options (nconc `(:case-fold ,(car case-fold))
-                                          options)))
-     (when regexp (setq options (nconc `(:regexp ,(car regexp)) options)))
+     (when context (setq options `(:context ,context . ,options)))
+     (when group (setq options `(:group ,(car group) . ,options)))
+     (when case-fold (setq options `(:case-fold ,(car case-fold) . ,options)))
+     (when regexp (setq options `(:regexp ,(car regexp) . ,options)))
      ;; Run `urgrep'.
      (if (and (not (bound-and-true-p eshell-plain-grep-behavior))
               (eshell-interactive-output-p)
@@ -1309,7 +1308,7 @@ Recursively search for PATTERN within PATH.")
        (when (not (equal directory default-directory))
          (error "Can't use plain urgrep with a non-default directory yet"))
        (unless (eshell-interactive-output-p)
-         (setq options (append '(:color nil) options)))
+         (setq options `(:color nil . ,options)))
        (throw 'eshell-replace-command
               (let* (;; Ensure we generate a POSIX shell-like command so that
                      ;; Eshell can (hopefully) parse it correctly.
