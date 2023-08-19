@@ -1323,7 +1323,7 @@ This is meant to be used as a command in Eshell."
          "number of lines of trailing context to print")
      ;; General options
      (?h "help" nil nil "show this help message")
-     :usage "[OPTION]... PATTERN [PATH]
+     :usage "[OPTION]... PATTERN [PATH]...
 Recursively search for PATTERN within PATH.")
    (unless args (error "Expected a search pattern"))
    (let* ((query (car args))
