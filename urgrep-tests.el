@@ -135,7 +135,7 @@ joined to compare against COMMAND."
   (let ((tool (assq 'ugrep urgrep-tools))
         (common-args '("ugrep" "--color=always"
                        "--colors=mt=01;31:fn=35:ln=:bn=:se=:sl=:cx=:ne"
-                       "-n" "--ignore-files")))
+                       "-rn" "--ignore-files")))
     ;; String/case
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool)
@@ -201,10 +201,18 @@ joined to compare against COMMAND."
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("--include=*.c" "--include=*.h" "--heading" "--break"
                            "-i" "-F" "-e" "foo")))
+    ;; Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory "dir")
+     (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo" "dir")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
+     (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo" "dir1"
+                           "dir2")))
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
-     (append '("ugrep" "--color=never" "-n" "--ignore-files" "--heading"
+     (append '("ugrep" "--color=never" "-rn" "--ignore-files" "--heading"
                "--break" "-i" "-F" "-e" "foo")))))
 
 (ert-deftest urgrep-tests/command/ripgrep ()
@@ -275,6 +283,13 @@ joined to compare against COMMAND."
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--"
                            "foo")))
+    ;; Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory "dir")
+     (append common-args '("--heading" "-i" "-F" "--" "foo" "dir")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
+     (append common-args '("--heading" "-i" "-F" "--" "foo" "dir1" "dir2")))
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
@@ -343,6 +358,13 @@ joined to compare against COMMAND."
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
                            "foo")))
+    ;; Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory "dir")
+     (append common-args '("--group" "-i" "-Q" "--" "foo" "dir")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
+     (append common-args '("--group" "-i" "-Q" "--" "foo" "dir1" "dir2")))
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
@@ -421,6 +443,15 @@ joined to compare against COMMAND."
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args no-hidden-args '("-G" "^[^\\000]*\\.(c|h)$" "--group"
                                           "-i" "-Q" "--" "foo")))
+    ;; Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory "dir")
+     (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo"
+                                          "dir")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
+     (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo" "dir1"
+                                          "dir2")))
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
@@ -510,6 +541,26 @@ joined to compare against COMMAND."
      (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
      (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
              '("*.c" "*.h")))
+    ;; Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory "dir")
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
+             '("dir")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
+             '("dir1" "dir2")))
+    ;; File wildcard + Directory
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :files "*.el" :directory "dir")
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
+             '(":(glob)dir/**/*.el")))
+    (urgrep-tests/check-command
+     (urgrep-command "foo" :tool tool :files '("*.c" "*.h")
+                     :directory '("dir1" "dir2"))
+     (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
+             '(":(glob)dir1/**/*.c" ":(glob)dir2/**/*.c" ":(glob)dir1/**/*.h"
+               ":(glob)dir2/**/*.h")))
     ;; Color
     (urgrep-tests/check-command
      (urgrep-command "foo" :tool tool :color nil)
@@ -520,59 +571,74 @@ joined to compare against COMMAND."
 
 (ert-deftest urgrep-tests/command/grep ()
   (let ((tool (assq 'grep urgrep-tools))
-        (template (concat "^find \\(\\|.+ \\)\\. \\(\\|.+ \\)%s\\(\\|.+ \\)"
+        (template (concat "^find \\(\\|.+ \\)%s \\(\\|.+ \\)%s\\(\\|.+ \\)"
                           "grep %s\\(\\|.+ \\)%s"))
         (escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
     ;; String/case
-    (should (string-match (format template "" "--color=always -i -F" "foo")
+    (should (string-match (format template "." "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool)))
-    (should (string-match (format template "" "--color=always -F" "Foo")
+    (should (string-match (format template "." "" "--color=always -F" "Foo")
                           (urgrep-command "Foo" :tool tool)))
     (let ((case-fold-search nil))
-      (should (string-match (format template "" "--color=always -F" "foo")
+      (should (string-match (format template "." "" "--color=always -F" "foo")
                             (urgrep-command "foo" :tool tool))))
-    (should (string-match (format template "" "--color=always -i -F" "foo")
+    (should (string-match (format template "." "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold t)))
-    (should (string-match (format template "" "--color=always -F" "foo")
+    (should (string-match (format template "." "" "--color=always -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold nil)))
-    (should (string-match (format template "" "--color=always -i -F" "foo")
+    (should (string-match (format template "." "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :case-fold 'smart)))
-    (should (string-match (format template "" "--color=always -F" "Foo")
+    (should (string-match (format template "." "" "--color=always -F" "Foo")
                           (urgrep-command "Foo" :tool tool :case-fold 'smart)))
     ;; Group
-    (should (string-match (format template "" "--color=always -i -F" "foo")
+    (should (string-match (format template "" "" "--color=always -i -F" "foo")
                           (urgrep-command "foo" :tool tool :group nil)))
     ;; Regexp
     (let ((query (funcall escape "(foo)")))
-      (should (string-match (format template "" "--color=always -i -G" query)
-                            (urgrep-command "(foo)" :tool tool :regexp t)))
-      (should (string-match (format template "" "--color=always -i -G" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'bre)))
-      (should (string-match (format template "" "--color=always -i -E" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'ere)))
-      (should (string-match (format template "" "--color=always -i -P" query)
-                            (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
+      (should (string-match
+               (format template "." "" "--color=always -i -G" query)
+               (urgrep-command "(foo)" :tool tool :regexp t)))
+      (should (string-match
+               (format template "." "" "--color=always -i -G" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'bre)))
+      (should (string-match
+               (format template "." "" "--color=always -i -E" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'ere)))
+      (should (string-match
+               (format template "." "" "--color=always -i -P" query)
+               (urgrep-command "(foo)" :tool tool :regexp 'pcre))))
     ;; Context
-    (should (string-match (format template "" "--color=always -C3 -i -F" "foo")
-                          (urgrep-command "foo" :tool tool :context 3)))
-    (should (string-match (format template "" "--color=always -C3 -i -F" "foo")
-                          (urgrep-command "foo" :tool tool :context '(3 . 3))))
-    (should (string-match (format template "" "--color=always -B2 -A4 -i -F"
-                                  "foo")
-                          (urgrep-command "foo" :tool tool :context '(2 . 4))))
+    (should (string-match
+             (format template "." "" "--color=always -C3 -i -F" "foo")
+             (urgrep-command "foo" :tool tool :context 3)))
+    (should (string-match
+             (format template "." "" "--color=always -C3 -i -F" "foo")
+             (urgrep-command "foo" :tool tool :context '(3 . 3))))
+    (should (string-match
+             (format template "." "" "--color=always -B2 -A4 -i -F" "foo")
+             (urgrep-command "foo" :tool tool :context '(2 . 4))))
     ;; File wildcard
     (let ((escape (lambda (i) (regexp-quote (shell-quote-argument i)))))
       (should (string-match
-               (format template (concat "-i?name " (funcall escape "*.el") " ")
+               (format template "."
+                       (concat "-i?name " (funcall escape "*.el") " ")
                        "--color=always -i -F" "foo")
                (urgrep-command "foo" :tool tool :files "*.el")))
       (should (string-match
-               (format template (concat "-i?name " (funcall escape "*.c") " -o "
-                                        "-i?name " (funcall escape "*.h") " ")
+               (format template "."
+                       (concat "-i?name " (funcall escape "*.c") " -o "
+                               "-i?name " (funcall escape "*.h") " ")
                        "--color=always -i -F" "foo")
                (urgrep-command "foo" :tool tool :files '("*.c" "*.h")))))
+    ;; Directory
+    (should (string-match
+             (format template "dir" "" "--color=always -i -F" "foo")
+             (urgrep-command "foo" :tool tool :directory "dir")))
+    (should (string-match
+             (format template "dir1 dir2" "" "--color=always -i -F" "foo")
+             (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))))
     ;; Color
-    (should (string-match (format template "" "+-i -F" "foo")
+    (should (string-match (format template "." "" "+-i -F" "foo")
                           (urgrep-command "foo" :tool tool :color nil)))))
 
 (ert-deftest urgrep-tests/get-tool/default ()

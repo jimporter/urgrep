@@ -5,11 +5,15 @@
 ### New features
 - Add support for toggling whether to search in hidden files (`M-s h` in the
   search prompt, or `urgrep-search-hidden-files` globally)
+- Add `:directory` key to `urgrep-command`, allowing you to specify zero or more
+  directories to search in
+- `urgrep` builtin for Eshell now supports specifying search directories as
+  arguments
 - Allow setting the search tool to use on the fly when reading the query
   (`M-s t` in the search prompt)
 
 ### Breaking changes
-- `urgrep-run-command` now takes `directory` and `tool` as optional keys
+- `urgrep-run-command` now takes `:tool` as an optional key to match `urgrep`
 
 ---
 
