@@ -1171,11 +1171,17 @@ future searches."
                                       (hidden urgrep-search-hidden-files)
                                       (files urgrep-file-wildcards)
                                       (group urgrep-group-matches)
-                                      (context urgrep-context-lines))
+                                      (context urgrep-context-lines)
+                                      (default (and (not initial)
+                                                    (urgrep--search-default))))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into
 a shell command. TOOL, REGEXP, CASE-FOLD, FILES, GROUP, and
-CONTEXT are as in `urgrep-command'."
+CONTEXT are as in `urgrep-command'.
+
+In addition, you can pass DEFAULT to specify the default search
+query. If nil, guess the default based on the current region or
+point."
   ;; Run this in a temporary buffer to make sure that none of the dynamic
   ;; variables below that we let-bind have buffer-local bindings. If they did,
   ;; we wouldn't be able to retrieve the values for them that we set from inside
@@ -1187,7 +1193,6 @@ CONTEXT are as in `urgrep-command'."
            (urgrep-search-hidden-files hidden)
            (urgrep-file-wildcards files)
            (urgrep-context-lines context)
-           (default (and (not initial) (urgrep--search-default)))
            (prompt (urgrep--search-prompt default))
            (query (minibuffer-with-setup-hook
                       (lambda () (setq-local urgrep--search-default default))
