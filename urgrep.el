@@ -1314,6 +1314,11 @@ This is meant to be used as a command in Eshell."
          "ignore case when searching for PATTERN")
      (?S "smart-case" nil case-fold
          "ignore case when searching for PATTERN if PATTERN is all lower case")
+     ;; Hidden file options
+     (nil "hidden" (t) hidden
+          "search hidden files")
+     (nil "no-hidden" (nil) hidden
+          "don't search hidden files")
      ;; Grouping options
      (nil "group" (t) group
           "group results by file")
@@ -1343,6 +1348,7 @@ Recursively search for PATTERN within PATH.")
      ;; Fill the options to pass to `urgrep'.
      (when directory (setq options `(:directory ,directory       . ,options)))
      (when context   (setq options `(:context   ,context         . ,options)))
+     (when hidden    (setq options `(:hidden    ,(car hidden)    . ,options)))
      (when group     (setq options `(:group     ,(car group)     . ,options)))
      (when case-fold (setq options `(:case-fold ,(car case-fold) . ,options)))
      (when regexp    (setq options `(:regexp    ,(car regexp)    . ,options)))
