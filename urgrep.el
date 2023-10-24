@@ -1151,7 +1151,7 @@ current search.  Outside the prompt, this sets the value for all
 future searches."
   (interactive
    (let ((enable-recursive-minibuffers t))
-                 (list (split-string (read-string "File wildcard: ")))))
+     (list (split-string (read-string "File wildcard: ")))))
   (setq urgrep-file-wildcards files)
   (when (window-minibuffer-p) (urgrep--update-search-prompt)))
 
