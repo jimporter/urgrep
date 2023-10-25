@@ -120,7 +120,7 @@ The currently-used tool can be inspected from the hook via
 
 ;; Urgrep utility functions
 
-;; `format-prompt' was added in Emacs 28.1.
+;; `split-string-shell-command' was added in Emacs 28.1.
 (defalias 'urgrep--split-string-shell-command
   (if (fboundp 'split-string-shell-command)
       #'split-string-shell-command
