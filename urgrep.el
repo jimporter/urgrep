@@ -273,8 +273,8 @@ CONTEXT, and COLOR are as in `urgrep-command'."
 Optional keys TOOL, REGEXP, CASE-FOLD, HIDDEN, FILES, DIRECTORY,
 CONTEXT, and COLOR are as in `urgrep-command'."
   ;; XXX: This is very similar to the implementation in `urgrep-command', except
-  ;; that we do some extra work to generate pathspecs. Can we factor out some of
-  ;; this?
+  ;; that we do some extra work to generate pathspecs.  Can we factor out some
+  ;; of this?
   (let* ((arguments (urgrep--get-prop 'arguments tool))
          (abbrev (urgrep--get-prop 'abbreviations tool))
          (pathspecs
@@ -304,7 +304,7 @@ CONTEXT, and COLOR are as in `urgrep-command'."
 (defun urgrep--rgrep-process-setup ()
   "Set up environment variables for rgrep.
 See also `grep-process-setup'."
-  ;; `setenv' modifies `process-environment' let-bound in `compilation-start'
+  ;; `setenv' modifies `process-environment' let-bound in `compilation-start'.
   ;; Any TERM except "dumb" allows GNU grep to use `--color=auto'.
   (setenv "TERM" "emacs-urgrep")
   ;; GREP_COLOR is used in GNU grep 2.5.1, but deprecated in later versions.
@@ -431,7 +431,7 @@ See also `grep-process-setup'."
                               "-c" "color.grep.separator="
                               "grep" "--color"))))
     (grep
-     ;; Note: We only use these for detecting the usability of find/grep. To
+     ;; Note: We only use these for detecting the usability of find/grep.  To
      ;; modify the programs that actually run, change `grep-find-template'.
      (executable-name "find" "grep")
      (regexp-syntax bre ere pcre)
@@ -451,7 +451,7 @@ See also `grep-process-setup'."
 (defcustom urgrep-preferred-tools nil
   "List of urgrep tools to search for.
 This can be nil to use the default list of tools in `urgrep-tools'
-or a list of tools to try in descending order of preference. Each
+or a list of tools to try in descending order of preference.  Each
 tool can be either a symbol naming the tool or a cons cell of the
 tool name and the file name of the executable (or a list thereof
 if there are multiple exeuctables)."
@@ -492,7 +492,8 @@ If SUFFIX is non-nil, append it to PROP to generate the property name."
 
 (defun urgrep--get-prop-pcase (prop tool value &optional suffix)
   "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE.
-If SUFFIX is non-nil, append it to PROP to generate the property name."
+If SUFFIX is non-nil, append it to PROP to generate the property
+name."
   (when-let ((cases (urgrep--get-prop prop tool suffix))
              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
@@ -531,17 +532,17 @@ This caches the default tool per-host in `urgrep--host-defaults'."
                        (proj (project-current)))
               (setq vc-backend-name (vc-responsible-backend
                                      (project-root proj))))
-            ;; If we find the executable (and it's for the right VC
-            ;; backend, if relevant), cache it and then return it.
+            ;; If we find the executable (and it's for the right VC backend, if
+            ;; relevant), cache it and then return it.
             (when (and (seq-every-p (lambda (i) (executable-find i t))
                                     (ensure-list tool-executable))
                        (or (not tool-vc-backend)
                            (string= vc-backend-name tool-vc-backend)))
-              ;; So long as we didn't examine a VC-specific tool, we can
-              ;; cache this result for future calls, since the result will
-              ;; always be the same.  If we *did* see a VC-specific tool,
-              ;; this host will use different tools for different
-              ;; directories, so we can't cache anything.
+              ;; So long as we didn't examine a VC-specific tool, we can cache
+              ;; this result for future calls, since the result will always be
+              ;; the same.  If we *did* see a VC-specific tool, this host will
+              ;; use different tools for different directories, so we can't
+              ;; cache anything.
               (unless saw-vc-tool-p
                 (setq urgrep--cached-tool tool)
                 (when (file-remote-p default-directory)
@@ -555,8 +556,8 @@ This caches the default tool per-host in `urgrep--host-defaults'."
 
 (defun urgrep-get-tool (&optional tool)
   "Get the urgrep tool for TOOL.
-If TOOL is nil, get the default tool.  If TOOL is a symbol, look it up
-in `urgrep-tools'.  Otherwise, return TOOL as-is."
+If TOOL is nil, get the default tool.  If TOOL is a symbol, look
+it up in `urgrep-tools'.  Otherwise, return TOOL as-is."
   (pcase tool
     ('nil (urgrep--get-default-tool))
     ((and (pred symbolp) tool) (assq tool urgrep-tools))
@@ -594,27 +595,30 @@ in `urgrep-tools'.  Otherwise, return TOOL as-is."
 Several keyword arguments can be supplied to adjust the resulting
 command:
 
-TOOL: a tool from `urgrep-tools': a key-value pair from the list, just
-the key, or nil to use the default tool.
+TOOL: a tool from `urgrep-tools': a key-value pair from the list,
+just the key, or nil to use the default tool.
 
 REGEXP: the style of regexp to use for results; one of nil (fixed
 strings), `bre' (basic regexp), `ere' (extend regexp), `pcre'
-\(Perl-compatible regexp), or t (the default regexp style stored in
-`urgrep-regexp-syntax').
+\(Perl-compatible regexp), or t (the default regexp style stored
+in `urgrep-regexp-syntax').
 
-CASE-FOLD: determine whether QUERY is case-sensitive or not; possible
-values are as `urgrep-case-fold', defaulting to `inherit'.
+CASE-FOLD: determine whether QUERY is case-sensitive or not;
+possible values are as `urgrep-case-fold', defaulting to
+`inherit'.
 
 HIDDEN: non-nil to search in hidden files; defaults to nil.
 
-FILES: a wildcard (or list of wildcards) to limit the files searched.
+FILES: a wildcard (or list of wildcards) to limit the files
+searched.
 
-GROUP: show results grouped by filename (t, the default), or if nil,
-prefix the filename on each result line.
+GROUP: show results grouped by filename (t, the default), or if
+nil, prefix the filename on each result line.
 
-CONTEXT: the number of lines of context to show around results; either
-an integer (to show the same number of lines before and after) or a
-cons (to show CAR and CDR lines before and after, respectively).
+CONTEXT: the number of lines of context to show around results;
+either an integer (to show the same number of lines before and
+after) or a cons (to show CAR and CDR lines before and after,
+respectively).
 
 COLOR: non-nil (the default) if the output should use color."
   (with-connection-local-variables
@@ -686,8 +690,8 @@ If EDIT-COMMAND is non-nil, the search can be edited."
     (urgrep--start command query urgrep-current-tool)))
 
 (defvar-keymap urgrep-mode-map
-  ;; Don't inherit from `compilation-minor-mode-map',
-  ;; because that introduces a menu bar item we don't want.
+  ;; Don't inherit from `compilation-minor-mode-map', because that introduces a
+  ;; menu bar item we don't want.
   :parent special-mode-map
   "<mouse-2>"     #'compile-goto-error
   "<follow-link>" 'mouse-face
@@ -723,8 +727,8 @@ If EDIT-COMMAND is non-nil, the search can be edited."
      :help "Kill the currently running search process"]))
 
 (defvar urgrep-mode-tool-bar-map
-  ;; When bootstrapping, tool-bar-map is not properly initialized yet,
-  ;; so don't do anything.
+  ;; When bootstrapping, `tool-bar-map' is not properly initialized yet, so
+  ;; don't do anything.
   (when (keymapp tool-bar-map)
     (let ((map (copy-keymap tool-bar-map)))
       (define-key map [undo] nil)
@@ -762,10 +766,10 @@ If EDIT-COMMAND is non-nil, the search can be edited."
 (defun urgrep-mode--looking-at-context-line ()
   "Return t if looking at a grep-like context line.
 
-If so, this function sets the match data, with the first match group
-indicating the separator between the line number and the match, and
-the second group indicating the separator between the file name and
-line number."
+If so, this function sets the match data, with the first match
+group indicating the separator between the line number and the
+match, and the second group indicating the separator between the
+file name and line number."
   ;; Use the `urgrep-file-name' property set by `urgrep-filter' to reliably
   ;; detect if the result was printed in grouped or ungrouped format.
   (if (get-text-property (point) 'urgrep-file-name)
@@ -800,8 +804,8 @@ line number."
     ;; Highlight context lines of various flavors.
     ((lambda (limit)
        (unless (bolp) (forward-line))
-       ;; Search line-by-line until we're looking at something that
-       ;; looks like a context line.
+       ;; Search line-by-line until we're looking at something that looks like a
+       ;; context line.
        (catch 'found
          (while (< (point) limit)
            (when (urgrep-mode--looking-at-context-line)
@@ -816,9 +820,11 @@ line number."
 (defvar urgrep--column-end-adjustment
   (if (< emacs-major-version 28) 0 1)
   "Handle core Emacs changes to the column range for `compile-mode' matches.
-In Emacs 28+, the column range for matches is closed, but in previous
-versions, it's half-open.  Use this to adjust the value as needed in
-`urgrep--column-end'.  For more details on the change, see
+In Emacs 28+, the column range for matches is closed, but in
+previous versions, it's half-open.  Use this to adjust the value
+as needed in `urgrep--column-end'.
+
+For more details on the change, see
 <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49624>.")
 
 (defun urgrep--column-begin ()
@@ -883,9 +889,9 @@ See `compilation-error-regexp-alist' for format details.")
 (defun urgrep-exit-message (status code msg)
   "Return a status message for urgrep results."
   (if (eq status 'exit)
-      ;; This relies on the fact that `compilation-start'
-      ;; sets buffer-modified to nil before running the command,
-      ;; so the buffer is still unmodified if there is no output.
+      ;; This relies on the fact that `compilation-start' sets buffer-modified
+      ;; to nil before running the command, so the buffer is still unmodified if
+      ;; there is no output.
       (cond ((and (zerop code) (buffer-modified-p))
              (if (> urgrep-num-matches-found 0)
                  (cons (format (ngettext "finished with %d match found\n"
@@ -1176,14 +1182,14 @@ future searches."
                                                     (urgrep--search-default))))
   "Prompt the user for a search query starting with an INITIAL value.
 Return a list that can be passed to `urgrep-command' to turn into
-a shell command. TOOL, REGEXP, CASE-FOLD, FILES, GROUP, and
+a shell command.  TOOL, REGEXP, CASE-FOLD, FILES, GROUP, and
 CONTEXT are as in `urgrep-command'.
 
 In addition, you can pass DEFAULT to specify the default search
-query. If nil, guess the default based on the current region or
+query.  If nil, guess the default based on the current region or
 point."
   ;; Run this in a temporary buffer to make sure that none of the dynamic
-  ;; variables below that we let-bind have buffer-local bindings. If they did,
+  ;; variables below that we let-bind have buffer-local bindings.  If they did,
   ;; we wouldn't be able to retrieve the values for them that we set from inside
   ;; the minibuffer.
   (with-temp-buffer
@@ -1265,7 +1271,7 @@ searched."
   "Recursively search using the given COMMAND.
 
 TOOL is the search tool corresponding to COMMAND (see
-`urgrep-get-tool'). If nil, guess the tool based on the value of
+`urgrep-get-tool').  If nil, guess the tool based on the value of
 COMMAND.
 
 When called interactively, this behaves like `urgrep', but allows you
