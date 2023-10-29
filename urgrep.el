@@ -212,6 +212,22 @@ one for each `:abbreviate' key found."
     (when tree (push (urgrep--maybe-shell-quote-argument tree) elems))
     (string-join (nreverse elems) " ")))
 
+(defun urgrep--interpolate-arguments (query tool props)
+  "Interpolate search arguments for QUERY using TOOL.
+PROPS is an alist of extra properties corresponding to the
+properties defined in the `urgrep-tools' entry for TOOL."
+  (let* ((arguments (urgrep--get-prop 'arguments tool))
+         (abbrev (urgrep--get-prop 'abbreviations tool))
+         (props `((executable . ,(urgrep--get-prop 'executable-name tool))
+                  (query . ,query)
+                  ,@(mapcar (pcase-lambda (`(,k . ,v))
+                              (cons k (urgrep--get-prop-pcase
+                                       k tool v "-arguments")))
+                            props))))
+    (urgrep--flatten-arguments (cl-sublis props arguments)
+                               abbrev)))
+
+
 (rx-define urgrep-regular-number (seq (any "1-9") (* digit)))
 
 
@@ -272,34 +288,23 @@ CONTEXT, and COLOR are as in `urgrep-command'."
   "Get the command to run for QUERY when using git grep.
 Optional keys TOOL, REGEXP, CASE-FOLD, HIDDEN, FILES, DIRECTORY,
 CONTEXT, and COLOR are as in `urgrep-command'."
-  ;; XXX: This is very similar to the implementation in `urgrep-command', except
-  ;; that we do some extra work to generate pathspecs.  Can we factor out some
-  ;; of this?
-  (let* ((arguments (urgrep--get-prop 'arguments tool))
-         (abbrev (urgrep--get-prop 'abbreviations tool))
-         (pathspecs
-          (if (and files directory)
-              (mapcan
-               (lambda (file)
-                 (mapcar (lambda (dir)
-                           (concat ":(glob)" (file-name-concat dir "**" file)))
-                         directory))
-               files)
-            (or files directory)))
-         (props `((executable . ,(urgrep--get-prop 'executable-name tool))
-                  (query . ,query)
-                  ,@(mapcar (pcase-lambda (`(,k . ,v))
-                              (cons k (urgrep--get-prop-pcase
-                                       k tool v "-arguments")))
-                            `((regexp         . ,regexp)
-                              (case-fold      . ,case-fold)
-                              (hidden-file    . ,hidden)
-                              (pathspec       . ,pathspecs)
-                              (group          . ,group)
-                              (context        . ,context)
-                              (color          . ,color))))))
-    (urgrep--flatten-arguments (cl-sublis props arguments)
-                               abbrev)))
+  (let ((pathspecs
+         (if (and files directory)
+             (mapcan
+              (lambda (file)
+                (mapcar (lambda (dir)
+                          (concat ":(glob)" (file-name-concat dir "**" file)))
+                        directory))
+              files)
+           (or files directory))))
+    (urgrep--interpolate-arguments query tool
+                                   `((regexp      . ,regexp)
+                                     (case-fold   . ,case-fold)
+                                     (hidden-file . ,hidden)
+                                     (pathspec    . ,pathspecs)
+                                     (group       . ,group)
+                                     (context     . ,context)
+                                     (color       . ,color)))))
 
 (defun urgrep--rgrep-process-setup ()
   "Set up environment variables for rgrep.
@@ -641,23 +646,15 @@ COLOR: non-nil (the default) if the output should use color."
                   :case-fold case-fold :hidden hidden :files files
                   :directory directory :group group :context context
                   :color color)
-       (let ((arguments (urgrep--get-prop 'arguments tool))
-             (abbrev (urgrep--get-prop 'abbreviations tool))
-             (props `((executable . ,(urgrep--get-prop 'executable-name tool))
-                      (query . ,query)
-                      ,@(mapcar (pcase-lambda (`(,k . ,v))
-                                  (cons k (urgrep--get-prop-pcase
-                                           k tool v "-arguments")))
-                                `((regexp         . ,tool-re-syntax)
-                                  (case-fold      . ,case-fold)
-                                  (hidden-file    . ,hidden)
-                                  (file-wildcards . ,files)
-                                  (directory      . ,directory)
-                                  (group          . ,group)
-                                  (context        . ,context)
-                                  (color          . ,color))))))
-         (urgrep--flatten-arguments (cl-sublis props arguments)
-                                    abbrev))))))
+       (urgrep--interpolate-arguments query tool
+                                      `((regexp         . ,tool-re-syntax)
+                                        (case-fold      . ,case-fold)
+                                        (hidden-file    . ,hidden)
+                                        (file-wildcards . ,files)
+                                        (directory      . ,directory)
+                                        (group          . ,group)
+                                        (context        . ,context)
+                                        (color          . ,color)))))))
 
 
 ;; urgrep-mode
