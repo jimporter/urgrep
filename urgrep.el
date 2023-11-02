@@ -628,8 +628,8 @@ respectively).
 COLOR: non-nil (the default) if the output should use color."
   (with-connection-local-variables
    (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
-          (files (if (listp files) files (list files)))
-          (directory (if (listp directory) directory (list directory)))
+          (files (ensure-list files))
+          (directory (ensure-list directory))
           (tool (or (urgrep-get-tool tool)
                     (error "unknown tool %s" tool)))
           (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
