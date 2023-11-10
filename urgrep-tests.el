@@ -668,6 +668,16 @@ joined to compare against COMMAND."
       (should (equal (urgrep--get-prop 'executable-name tool) "/usr/bin/ag"))
       (should (equal urgrep--cached-tool tool)))))
 
+(ert-deftest urgrep-tests/get-tool/preferred-buffer-local ()
+  (cl-letf (((symbol-function #'executable-find) #'always))
+    (let* ((urgrep--cached-tool)
+           (urgrep-preferred-tools '(ag grep)))
+      (should (equal (car (urgrep-get-tool)) 'ag))
+      (with-temp-buffer
+        (setq-local urgrep-preferred-tools '(ripgrep))
+        (should (equal (car (urgrep-get-tool)) 'ripgrep)))
+      (should (equal (car (urgrep-get-tool)) 'ag)))))
+
 (ert-deftest urgrep-tests/get-tool/key ()
   (cl-letf (((symbol-function #'executable-find) #'always))
     (let* ((urgrep--cached-tool)

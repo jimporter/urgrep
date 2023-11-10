@@ -2,7 +2,8 @@
 
 ## v0.3.0 (in progress)
 
-No changes yet
+### Bug fixes
+- Respect buffer-local values of `urgrep-preferred-tools`
 
 ---
 
