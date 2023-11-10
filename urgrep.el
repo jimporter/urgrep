@@ -452,6 +452,18 @@ See also `grep-process-setup'."
      (context-arguments . ,urgrep--context-arguments)))
   "An alist of known tools to try when running urgrep.")
 
+(defvar urgrep--cached-tool nil
+  "The cached urgrep tool to use.
+This value is connection-local.")
+
+(connection-local-set-profile-variables
+ 'urgrep-connection-local-profile
+ '((urgrep--cached-tool . nil)))
+
+(connection-local-set-profiles
+ '(:application tramp)
+ 'urgrep-connection-local-profile)
+
 (defcustom urgrep-preferred-tools nil
   "List of urgrep tools to search for.
 This can be nil to use the default list of tools in `urgrep-tools'
@@ -468,19 +480,10 @@ if there are multiple exeuctables)."
                      (append tool-choice
                              `((cons :tag "(tool . path)"
                                      ,tool-choice (string :tag "Path")))))))
-    :group 'urgrep)
-
-(defvar urgrep--cached-tool nil
-  "The cached urgrep tool to use.
-This value is connection-local.")
-
-(connection-local-set-profile-variables
- 'urgrep-connection-local-profile
- '((urgrep--cached-tool . nil)))
-
-(connection-local-set-profiles
- '(:application tramp)
- 'urgrep-connection-local-profile)
+  :set (lambda (symbol value)
+         (setq urgrep--cached-tool nil)
+         (set-default symbol value))
+  :group 'urgrep)
 
 (defsubst urgrep-connection-local-profile ()
   "Get a connection-local profile name for urgrep."
