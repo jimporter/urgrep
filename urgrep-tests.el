@@ -139,81 +139,79 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       (append common-args '("--heading" "--break" "-F" "-e" "Foo")))
+       `(,@common-args "--heading" "--break" "-F" "-e" "Foo"))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         (append common-args '("--heading" "--break" "-F" "-e" "foo"))))
+         `(,@common-args "--heading" "--break" "-F" "-e" "foo")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       (append common-args '("--heading" "--break" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       (append common-args '("--heading" "--break" "-F" "-e" "Foo"))))
+       `(,@common-args "--heading" "--break" "-F" "-e" "Foo")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       (append common-args '("-i" "-F" "-e" "foo"))))
+       `(,@common-args "-i" "-F" "-e" "foo")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       (append common-args '("--heading" "--break" "-i" "-G" "-e" "(foo)")))
+       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       (append common-args '("--heading" "--break" "-i" "-G" "-e" "(foo)")))
+       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       (append common-args '("--heading" "--break" "-i" "-E" "-e" "(foo)")))
+       `(,@common-args "--heading" "--break" "-i" "-E" "-e" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       (append common-args '("--heading" "--break" "-i" "-P" "-e" "(foo)"))))
+       `(,@common-args "--heading" "--break" "-i" "-P" "-e" "(foo)")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       (append common-args '("--heading" "--break" "-C3" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       (append common-args '("--heading" "--break" "-C3" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       (append common-args '("--heading" "--break" "-B2" "-A4" "-i" "-F" "-e"
-                             "foo"))))
+       `(,@common-args "--heading" "--break" "-B2" "-A4" "-i" "-F" "-e" "foo")))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       (append common-args '("--hidden" "--heading" "--break" "-i" "-F" "-e"
-                             "foo"))))
+       `(,@common-args "--hidden" "--heading" "--break" "-i" "-F" "-e" "foo")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el")
-       (append common-args '("--include=*.el" "--heading" "--break" "-i" "-F"
-                             "-e" "foo")))
+       `(,@common-args "--include=*.el" "--heading" "--break" "-i" "-F" "-e"
+                       "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-       (append common-args '("--include=*.c" "--include=*.h" "--heading"
-                             "--break" "-i" "-F" "-e" "foo"))))
+       `(,@common-args "--include=*.c" "--include=*.h" "--heading" "--break"
+                       "-i" "-F" "-e" "foo")))
     (ert-info ("Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory "dir")
-       (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo" "dir")))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       (append common-args '("--heading" "--break" "-i" "-F" "-e" "foo" "dir1"
-                             "dir2"))))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "dir1"
+                       "dir2")))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       (append '("ugrep" "--color=never" "-rn" "--ignore-files" "--heading"
-                 "--break" "-i" "-F" "-e" "foo"))))))
+       '("ugrep" "--color=never" "-rn" "--ignore-files" "--heading"
+         "--break" "-i" "-F" "-e" "foo")))))
 
 (ert-deftest urgrep-tests/command/ripgrep ()
   (let ((tool (assq 'ripgrep urgrep-tools))
@@ -224,76 +222,75 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       (append common-args '("--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       (append common-args '("--heading" "-F" "--" "Foo")))
+       `(,@common-args "--heading" "-F" "--" "Foo"))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         (append common-args '("--heading" "-F" "--" "foo"))))
+         `(,@common-args "--heading" "-F" "--" "foo")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       (append common-args '("--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       (append common-args '("--heading" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       (append common-args '("--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       (append common-args '("--heading" "-F" "--" "Foo"))))
+       `(,@common-args "--heading" "-F" "--" "Foo")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       (append common-args '("--no-heading" "-i" "-F" "--" "foo"))))
+       `(,@common-args "--no-heading" "-i" "-F" "--" "foo")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       (append common-args '("--heading" "-i" "--" "\\(foo\\)")))
+       `(,@common-args "--heading" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       (append common-args '("--heading" "-i" "--" "\\(foo\\)")))
+       `(,@common-args "--heading" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       (append common-args '("--heading" "-i" "--" "(foo)")))
+       `(,@common-args "--heading" "-i" "--" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       (append common-args '("--heading" "-i" "--" "(foo)"))))
+       `(,@common-args "--heading" "-i" "--" "(foo)")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       (append common-args '("--heading" "-C3" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       (append common-args '("--heading" "-C3" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       (append common-args '("--heading" "-B2" "-A4" "-i" "-F" "--" "foo"))))
+       `(,@common-args "--heading" "-B2" "-A4" "-i" "-F" "--" "foo")))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       (append common-args '("--hidden" "--heading" "-i" "-F" "--" "foo"))))
+       `(,@common-args "--hidden" "--heading" "-i" "-F" "--" "foo")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el")
-       (append common-args '("-g" "*.el" "--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "-g" "*.el" "--heading" "-i" "-F" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-       (append common-args '("-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--"
-                             "foo"))))
+       `(,@common-args "-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--" "foo")))
     (ert-info ("Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory "dir")
-       (append common-args '("--heading" "-i" "-F" "--" "foo" "dir")))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       (append common-args '("--heading" "-i" "-F" "--" "foo" "dir1" "dir2"))))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "dir1" "dir2")))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       (append '("rg" "--color=never" "--heading" "-i" "-F" "--" "foo"))))))
+       '("rg" "--color=never" "--heading" "-i" "-F" "--" "foo")))))
 
 (ert-deftest urgrep-tests/command/ag ()
   (let ((tool (assq 'ag urgrep-tools))
@@ -302,73 +299,72 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       (append common-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       (append common-args '("--group" "-s" "-Q" "--" "Foo")))
+       `(,@common-args "--group" "-s" "-Q" "--" "Foo"))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         (append common-args '("--group" "-s" "-Q" "--" "foo"))))
+         `(,@common-args "--group" "-s" "-Q" "--" "foo")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       (append common-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       (append common-args '("--group" "-s" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-s" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       (append common-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       (append common-args '("--group" "-s" "-Q" "--" "Foo"))))
+       `(,@common-args "--group" "-s" "-Q" "--" "Foo")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       (append common-args '("--nogroup" "-i" "-Q" "--" "foo"))))
+       `(,@common-args "--nogroup" "-i" "-Q" "--" "foo")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+       `(,@common-args "--group" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       (append common-args '("--group" "-i" "--" "\\(foo\\)")))
+       `(,@common-args "--group" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       (append common-args '("--group" "-i" "--" "(foo)")))
+       `(,@common-args "--group" "-i" "--" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       (append common-args '("--group" "-i" "--" "(foo)"))))
+       `(,@common-args "--group" "-i" "--" "(foo)")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-C3" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       (append common-args '("--group" "-C3" "-i" "-Q" "--" "foo")))
+       `(,@common-args "--group" "-C3" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       (append common-args '("--group" "-B2" "-A4" "-i" "-Q" "--" "foo"))))
+       `(,@common-args "--group" "-B2" "-A4" "-i" "-Q" "--" "foo")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el")
-       (append common-args '("-G" "^[^\\000]*\\.el$" "--group" "-i" "-Q" "--"
-                             "foo")))
+       `(,@common-args "-G" "^[^\\000]*\\.el$" "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-       (append common-args '("-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
-                             "foo"))))
+       `(,@common-args "-G" "^[^\\000]*\\.(c|h)$" "--group" "-i" "-Q" "--"
+                       "foo")))
     (ert-info ("Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory "dir")
-       (append common-args '("--group" "-i" "-Q" "--" "foo" "dir")))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       (append common-args '("--group" "-i" "-Q" "--" "foo" "dir1" "dir2"))))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo" "dir1" "dir2")))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       (append '("ag" "--nocolor" "--group" "-i" "-Q" "--" "foo"))))))
+       '("ag" "--nocolor" "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests/command/ack ()
   (let ((tool (assq 'ack urgrep-tools))
@@ -380,83 +376,79 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       (append common-args no-hidden-args '("--group" "-Q" "--" "Foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-Q" "--" "Foo"))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         (append common-args no-hidden-args '("--group" "-Q" "--" "foo"))))
+         `(,@common-args ,@no-hidden-args "--group" "-Q" "--" "foo")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       (append common-args no-hidden-args '("--group" "-Q" "--" "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       (append common-args no-hidden-args '("--group" "-Q" "--" "Foo"))))
+       `(,@common-args ,@no-hidden-args "--group" "-Q" "--" "Foo")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       (append common-args no-hidden-args '("--nogroup" "-i" "-Q" "--" "foo"))))
+       `(,@common-args ,@no-hidden-args "--nogroup" "-i" "-Q" "--" "foo")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       (append common-args no-hidden-args '("--group" "-i" "--" "\\(foo\\)")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       (append common-args no-hidden-args '("--group" "-i" "--" "\\(foo\\)")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "--" "\\(foo\\)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       (append common-args no-hidden-args '("--group" "-i" "--" "(foo)")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "--" "(foo)"))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       (append common-args no-hidden-args '("--group" "-i" "--" "(foo)"))))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "--" "(foo)")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       (append common-args no-hidden-args '("--group" "-C3" "-i" "-Q" "--"
-                                            "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-C3" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       (append common-args no-hidden-args '("--group" "-C3" "-i" "-Q" "--"
-                                            "foo")))
+       `(,@common-args ,@no-hidden-args "--group" "-C3" "-i" "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       (append common-args no-hidden-args '("--group" "-B2" "-A4" "-i" "-Q" "--"
-                                            "foo"))))
+       `(,@common-args ,@no-hidden-args "--group" "-B2" "-A4" "-i" "-Q" "--"
+                       "foo")))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       (append common-args '("--group" "-i" "-Q" "--" "foo"))))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el")
-       (append common-args no-hidden-args '("-G" "^[^\\000]*\\.el$" "--group"
-                                            "-i" "-Q" "--" "foo")))
+       `(,@common-args ,@no-hidden-args "-G" "^[^\\000]*\\.el$" "--group" "-i"
+                       "-Q" "--" "foo"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-       (append common-args no-hidden-args '("-G" "^[^\\000]*\\.(c|h)$" "--group"
-                                            "-i" "-Q" "--" "foo"))))
+       `(,@common-args ,@no-hidden-args "-G" "^[^\\000]*\\.(c|h)$" "--group"
+                       "-i" "-Q" "--" "foo")))
     (ert-info ("Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory "dir")
-       (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo"
-                                            "dir")))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       (append common-args no-hidden-args '("--group" "-i" "-Q" "--" "foo"
-                                            "dir1" "dir2"))))
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo" "dir1"
+                       "dir2")))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       (append '("ack" "--nocolor") no-hidden-args
-               '("--group" "-i" "-Q" "--" "foo"))))))
+       `("ack" "--nocolor" ,@no-hidden-args "--group" "-i" "-Q" "--" "foo")))))
 
 (ert-deftest urgrep-tests/command/git-grep ()
   (let ((tool (assq 'git-grep urgrep-tools))
@@ -471,109 +463,99 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       (append common-args group-args '("-F" "-e" "Foo" "--") no-hidden-args))
+       `(,@common-args ,@group-args "-F" "-e" "Foo" "--" ,@no-hidden-args))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         (append common-args group-args '("-F" "-e" "foo" "--")
-                 no-hidden-args)))
+         `(,@common-args ,@group-args "-F" "-e" "foo" "--" ,@no-hidden-args)))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       (append common-args group-args '("-F" "-e" "foo" "--") no-hidden-args))
+       `(,@common-args ,@group-args "-F" "-e" "foo" "--" ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       (append common-args group-args '("-F" "-e" "Foo" "--") no-hidden-args)))
+       `(,@common-args ,@group-args "-F" "-e" "Foo" "--" ,@no-hidden-args)))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       (append common-args '("-i" "-F" "-e" "foo" "--") no-hidden-args)))
+       `(,@common-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args)))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       (append common-args group-args '("-i" "-G" "-e" "(foo)" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-G" "-e" "(foo)" "--"
+                       ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       (append common-args group-args '("-i" "-G" "-e" "(foo)" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-G" "-e" "(foo)" "--"
+                       ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       (append common-args group-args '("-i" "-E" "-e" "(foo)" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-i" "-E" "-e" "(foo)" "--"
+                       ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       (append common-args group-args '("-i" "-P" "-e" "(foo)" "--")
-               no-hidden-args)))
+       `(,@common-args ,@group-args "-i" "-P" "-e" "(foo)" "--"
+                       ,@no-hidden-args)))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       (append common-args group-args '("-C3" "-i" "-F" "-e" "foo" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-C3" "-i" "-F" "-e" "foo" "--"
+                       ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       (append common-args group-args '("-C3" "-i" "-F" "-e" "foo" "--")
-               no-hidden-args))
+       `(,@common-args ,@group-args "-C3" "-i" "-F" "-e" "foo" "--"
+                       ,@no-hidden-args))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       (append common-args group-args '("-B2" "-A4" "-i" "-F" "-e" "foo" "--")
-               no-hidden-args)))
+       `(,@common-args ,@group-args "-B2" "-A4" "-i" "-F" "-e" "foo" "--"
+                       ,@no-hidden-args)))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--"))))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el")
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args
-               '("*.el")))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       "*.el"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h"))
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args
-               '("*.c" "*.h"))))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       "*.c" "*.h")))
     (ert-info ("Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory "dir")
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args
-               '("dir")))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args
-               '("dir1" "dir2"))))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       "dir1" "dir2")))
     (ert-info ("File wildcard + Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files "*.el" :directory "dir")
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args
-               '(":(glob)dir/**/*.el")))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       ":(glob)dir/**/*.el"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :files '("*.c" "*.h")
                        :directory '("dir1" "dir2"))
-       (append common-args group-args '("-i" "-F" "-e" "foo" "--")
-               no-hidden-args
-               '(":(glob)dir1/**/*.c" ":(glob)dir2/**/*.c" ":(glob)dir1/**/*.h"
-                 ":(glob)dir2/**/*.h"))))
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       ":(glob)dir1/**/*.c" ":(glob)dir2/**/*.c"
+                       ":(glob)dir1/**/*.h" ":(glob)dir2/**/*.h")))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       (append
-        '("git" "--no-pager" "grep" "--no-color" "--no-index"
-          "--exclude-standard" "-n")
-        group-args '("-i" "-F" "-e" "foo" "--") no-hidden-args)))))
+       `("git" "--no-pager" "grep" "--no-color" "--no-index"
+         "--exclude-standard" "-n" ,@group-args "-i" "-F" "-e" "foo" "--"
+         ,@no-hidden-args)))))
 
 (ert-deftest urgrep-tests/command/grep ()
   (let ((tool (assq 'grep urgrep-tools))
