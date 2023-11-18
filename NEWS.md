@@ -5,6 +5,10 @@
 ### Bug fixes
 - Respect buffer-local values of `urgrep-preferred-tools`
 
+### Breaking changes
+- `:files` keyword argument in `urgrep-command` and friends is now
+  `:file-wildcard`
+
 ---
 
 ## v0.2.0 (2023-08-31)
