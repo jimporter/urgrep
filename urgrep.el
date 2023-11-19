@@ -191,6 +191,21 @@ for MS shells."
   "Join ARGUMENTS by spaces, quoting each argument as needed for the shell."
   (mapconcat #'urgrep--maybe-shell-quote-argument arguments " "))
 
+(defun urgrep--safe-file-name (file)
+  "Get a safe form of FILE ready to pass to an external process.
+This expands tildes and removes any remote host identifiers or quoting."
+  (when-let ((remote (file-remote-p file)))
+    (unless (equal remote (file-remote-p default-directory))
+      (error "remote file doesn't match host for `default-directory'"))
+    (setq file (file-local-name file)))
+  (setq file (file-name-unquote file))
+  (if (not (string-prefix-p "~" file))
+      file
+    (setq file (expand-file-name file))
+    (if (file-in-directory-p file default-directory)
+        (file-relative-name file)
+      (file-local-name file))))
+
 (defun urgrep--flatten-arguments (tree &optional abbrs)
   "Flatten a TREE of arguments into a single shell-quoted string.
 This also finds sublists with the `:abbreviate' key and adds the
@@ -228,7 +243,6 @@ properties defined in the `urgrep-tools' entry for TOOL."
                                        k tool v "-arguments")))
                             props))))
     (urgrep--flatten-arguments (cl-sublis props arguments) abbrev)))
-
 
 (rx-define urgrep-regular-number (seq (any "1-9") (* digit)))
 
@@ -620,6 +634,9 @@ HIDDEN: non-nil to search in hidden files; defaults to nil.
 FILE-WILDCARD: a wildcard (or list of wildcards) to limit the
 files searched.
 
+DIRECTORY: the directory (or list of directories) to search in;
+if nil (the default), search in `default-directory'.
+
 GROUP: show results grouped by filename (t, the default), or if
 nil, prefix the filename on each result line.
 
@@ -632,7 +649,7 @@ COLOR: non-nil (the default) if the output should use color."
   (with-connection-local-variables
    (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
           (file-wildcard (ensure-list file-wildcard))
-          (directory (ensure-list directory))
+          (directory (mapcar #'urgrep--safe-file-name (ensure-list directory)))
           (tool (or (urgrep-get-tool tool)
                     (error "unknown tool %s" tool)))
           (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))

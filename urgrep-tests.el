@@ -206,7 +206,11 @@ joined to compare against COMMAND."
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
        `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "dir1"
-                       "dir2")))
+                       "dir2"))
+      (urgrep-tests/check-command
+       (urgrep-command "foo" :tool tool :directory "~/dir")
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"
+                       ,(expand-file-name "~/dir"))))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
@@ -286,7 +290,11 @@ joined to compare against COMMAND."
        `(,@common-args "--heading" "-i" "-F" "--" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       `(,@common-args "--heading" "-i" "-F" "--" "foo" "dir1" "dir2")))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "dir1" "dir2"))
+      (urgrep-tests/check-command
+       (urgrep-command "foo" :tool tool :directory "~/dir")
+       `(,@common-args "--heading" "-i" "-F" "--" "foo"
+                       ,(expand-file-name "~/dir"))))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
@@ -360,7 +368,11 @@ joined to compare against COMMAND."
        `(,@common-args "--group" "-i" "-Q" "--" "foo" "dir"))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
-       `(,@common-args "--group" "-i" "-Q" "--" "foo" "dir1" "dir2")))
+       `(,@common-args "--group" "-i" "-Q" "--" "foo" "dir1" "dir2"))
+      (urgrep-tests/check-command
+       (urgrep-command "foo" :tool tool :directory "~/dir")
+       `(,@common-args "--group" "-i" "-Q" "--" "foo"
+                       ,(expand-file-name "~/dir"))))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
@@ -444,7 +456,11 @@ joined to compare against COMMAND."
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
        `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo" "dir1"
-                       "dir2")))
+                       "dir2"))
+      (urgrep-tests/check-command
+       (urgrep-command "foo" :tool tool :directory "~/dir")
+       `(,@common-args ,@no-hidden-args "--group" "-i" "-Q" "--" "foo"
+                       ,(expand-file-name "~/dir"))))
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
@@ -538,7 +554,11 @@ joined to compare against COMMAND."
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))
        `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
-                       "dir1" "dir2")))
+                       "dir1" "dir2"))
+      (urgrep-tests/check-command
+       (urgrep-command "foo" :tool tool :directory "~/dir")
+       `(,@common-args ,@group-args "-i" "-F" "-e" "foo" "--" ,@no-hidden-args
+                       ,(expand-file-name "~/dir"))))
     (ert-info ("File wildcard + Directory")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :file-wildcard "*.el" :directory "dir")
@@ -629,7 +649,11 @@ joined to compare against COMMAND."
                (urgrep-command "foo" :tool tool :directory "dir")))
       (should (string-match
                (format template "dir1 dir2" "" "--color=always -i -F" "foo")
-               (urgrep-command "foo" :tool tool :directory '("dir1" "dir2")))))
+               (urgrep-command "foo" :tool tool :directory '("dir1" "dir2"))))
+      (should (string-match
+               (format template (expand-file-name "~/dir") ""
+                       "--color=always -i -F" "foo")
+               (urgrep-command "foo" :tool tool :directory "~/dir"))))
     (ert-info ("Color")
       (should (string-match (format template "." "" "+-i -F" "foo")
                             (urgrep-command "foo" :tool tool :color nil))))))
