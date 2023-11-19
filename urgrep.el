@@ -187,6 +187,10 @@ for MS shells."
       argument
     (shell-quote-argument argument)))
 
+(defun urgrep--shell-join (arguments)
+  "Join ARGUMENTS by spaces, quoting each argument as needed for the shell."
+  (mapconcat #'urgrep--maybe-shell-quote-argument arguments " "))
+
 (defun urgrep--flatten-arguments (tree &optional abbrs)
   "Flatten a TREE of arguments into a single shell-quoted string.
 This also finds sublists with the `:abbreviate' key and adds the
@@ -201,8 +205,7 @@ one for each `:abbreviate' key found."
           (while (consp elem)
             (when (eq (car elem) :abbreviate)
               (push (propertize
-                     (mapconcat #'urgrep--maybe-shell-quote-argument
-                                (flatten-list (cdr elem)) " ")
+                     (urgrep--shell-join (flatten-list (cdr elem)))
                      'abbreviated-command (or (pop abbrs) t))
                     elems)
               (throw 'abbreviated t))
@@ -250,15 +253,12 @@ DIRECTORY, CONTEXT, and COLOR are as in `urgrep-command'."
   (let ((grep-find-template grep-find-template)
         (grep-highlight-matches (if color 'always nil))
         (file-wildcard (if file-wildcard (string-join file-wildcard " ") "*"))
-        (directory (when directory
-                     (mapconcat #'urgrep--maybe-shell-quote-argument
-                                directory " "))))
+        (directory (when directory (urgrep--shell-join directory))))
     (pcase-dolist (`(,k . ,v) `((regexp    . ,regexp)
                                 (case-fold . ,case-fold)
                                 (context   . ,context)))
       (when-let ((args (urgrep--get-prop-pcase k tool v "-arguments"))
-                 (args (mapconcat #'urgrep--maybe-shell-quote-argument args
-                                  " "))
+                 (args (urgrep--shell-join args))
                  ((string-match "<C>" grep-find-template)))
         (setq grep-find-template
               (replace-match (concat "<C> " args) t t grep-find-template))))
