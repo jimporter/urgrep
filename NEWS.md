@@ -2,6 +2,10 @@
 
 ## v0.3.0 (in progress)
 
+### New features
+- Add optional `urgrep-xref` feature, which lets Xref use Urgrep to create the
+  command for searching in files/directories
+
 ### Bug fixes
 - Respect buffer-local values of `urgrep-preferred-tools`
 
