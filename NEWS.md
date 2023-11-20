@@ -8,6 +8,8 @@
 ### Breaking changes
 - `:files` keyword argument in `urgrep-command` and friends is now
   `:file-wildcard`
+- `:directory` keyword argument in `urgrep-commnd` and friends is now `:root`,
+  and can accept file and/or directory names
 
 ---
 

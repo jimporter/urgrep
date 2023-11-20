@@ -257,60 +257,75 @@ properties defined in the `urgrep-tools' entry for TOOL."
     (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
 
 (cl-defun urgrep--rgrep-command (query &key tool regexp case-fold hidden
-                                       file-wildcard directory context color
+                                       file-wildcard root context color
                                        &allow-other-keys)
   "Get the command to run for QUERY when using rgrep.
 Optional keys TOOL, REGEXP, CASE-FOLD, HIDDEN, FILE-WILDCARD,
-DIRECTORY, CONTEXT, and COLOR are as in `urgrep-command'."
+ROOT, CONTEXT, and COLOR are as in `urgrep-command'."
   (grep-compute-defaults)
-  ;; Locally add options to `grep-find-template' that grep.el isn't aware of.
-  (let ((grep-find-template grep-find-template)
+  (let ((case-fold-search nil)
         (grep-highlight-matches (if color 'always nil))
-        (file-wildcard (if file-wildcard (string-join file-wildcard " ") "*"))
-        (directory (when directory (urgrep--shell-join directory))))
-    (pcase-dolist (`(,k . ,v) `((regexp    . ,regexp)
-                                (case-fold . ,case-fold)
-                                (context   . ,context)))
-      (when-let ((args (urgrep--get-prop-pcase k tool v "-arguments"))
-                 (args (urgrep--shell-join args))
-                 ((string-match "<C>" grep-find-template)))
-        (setq grep-find-template
-              (replace-match (concat "<C> " args) t t grep-find-template))))
-    (let ((case-fold-search nil)
-          (grep-find-ignored-directories grep-find-ignored-directories)
-          (grep-find-ignored-files grep-find-ignored-files))
-      (unless hidden
-        (setq grep-find-ignored-directories
-              (cons ".*" (seq-filter (lambda (s) (not (string-prefix-p "." s)))
-                                     grep-find-ignored-directories))
-              grep-find-ignored-files
-              (cons ".*" (seq-filter (lambda (s) (not (string-prefix-p "." s)))
-                                     grep-find-ignored-files))))
-      (let ((command (rgrep-default-command query file-wildcard directory)))
-        (save-match-data
-          ;; Hide excessive part of rgrep command.
-          (when (string-match
-                 (rx bol "find " (group (*? nonl)) " " (or "-exec" "-print"))
-                 command)
-            (put-text-property (match-beginning 1) (match-end 1)
-                               'abbreviated-command t command)))
-        command))))
+        (extra-opts
+         (apply #'append
+                (mapcar (pcase-lambda (`(,k . ,v))
+                          (urgrep--get-prop-pcase k tool v "-arguments"))
+                        `((context   . ,context)
+                          (case-fold . ,case-fold)
+                          (regexp    . ,regexp))))))
+    (if root
+        (let ((file-wildcard
+               (if file-wildcard (string-join file-wildcard " ") "*"))
+              (dirs (urgrep--shell-join root))
+              (grep-find-template grep-find-template)
+              (grep-find-ignored-directories grep-find-ignored-directories)
+              (grep-find-ignored-files grep-find-ignored-files))
+          (save-match-data
+            (unless (string-match "<C>" grep-find-template)
+              (error "`grep-find-template' should have a <C> placeholder"))
+            ;; Locally add options to `grep-find-template' that grep.el isn't
+            ;; aware of.
+            (setq grep-find-template
+                  (replace-match (concat "<C> " (urgrep--shell-join extra-opts))
+                                 t t grep-find-template))
+            (unless hidden
+              ;; Ignore all dotfiles.
+              (let ((pred (lambda (s) (not (string-prefix-p "." s)))))
+                (setq grep-find-ignored-directories
+                      (cons ".*" (seq-filter
+                                  pred grep-find-ignored-directories))
+                      grep-find-ignored-files
+                      (cons ".*" (seq-filter pred grep-find-ignored-files)))))
+            (let ((command (rgrep-default-command query file-wildcard dirs)))
+              ;; Hide excessive part of rgrep command.
+              (when (string-match (rx bol "find " (group (*? nonl)) " "
+                                      (or "-exec" "-print"))
+                     command)
+                (put-text-property (match-beginning 1) (match-end 1)
+                                   'abbreviated-command t command))
+              command)))
+      ;; No ROOT, so do a regular `grep'.
+      (grep-expand-template grep-template query nil nil nil extra-opts))))
 
 (cl-defun urgrep--git-grep-command (query &key tool regexp case-fold hidden
-                                          file-wildcard directory group context
+                                          file-wildcard root group context
                                           color)
   "Get the command to run for QUERY when using git grep.
 Optional keys TOOL, REGEXP, CASE-FOLD, HIDDEN, FILE-WILDCARD,
-DIRECTORY, CONTEXT, and COLOR are as in `urgrep-command'."
+ROOT, CONTEXT, and COLOR are as in `urgrep-command'."
   (let ((pathspecs
-         (if (and file-wildcard directory)
-             (mapcan
-              (lambda (file)
-                (mapcar (lambda (dir)
-                          (concat ":(glob)" (file-name-concat dir "**" file)))
-                        directory))
-              file-wildcard)
-           (or file-wildcard directory))))
+         (cond
+          ((equal root '("."))
+           file-wildcard)
+          ((and file-wildcard root)
+           (mapcan
+            (lambda (file)
+              (mapcar (lambda (dir)
+                        (concat ":(glob)" (file-name-concat dir "**" file)))
+                      root))
+            file-wildcard))
+          (file-wildcard
+           (error ":file-wildcard expects a non-nil :root"))
+          (t root))))
     (urgrep--interpolate-arguments query tool
                                    `((regexp      . ,regexp)
                                      (case-fold   . ,case-fold)
@@ -337,7 +352,7 @@ See also `grep-process-setup'."
      (regexp-syntax bre ere pcre)
      (arguments executable (:abbreviate color "-rn" "--ignore-files")
                 hidden-file file-wildcard group context case-fold regexp "-e"
-                query directory)
+                query root)
      (regexp-arguments ('bre  '("-G"))
                        ('ere  '("-E"))
                        ('pcre '("-P"))
@@ -347,7 +362,8 @@ See also `grep-process-setup'."
      (file-wildcard-arguments
       ((and x (pred identity))
        (mapcar (lambda (i) (concat "--include=" i)) x)))
-     (directory-arguments (x x))
+     (root-arguments ('(".") nil)
+                     (x x))
      (group-arguments ((pred identity) '("--heading" "--break")))
      (context-arguments . ,urgrep--context-arguments)
      (color-arguments
@@ -358,14 +374,15 @@ See also `grep-process-setup'."
      (executable-name . "rg")
      (regexp-syntax pcre)
      (arguments executable (:abbreviate color) hidden-file file-wildcard group
-                context case-fold regexp "--" query directory)
+                context case-fold regexp "--" query root)
      (regexp-arguments ('nil '("-F")))
      (case-fold-arguments ((pred identity) '("-i")))
      (hidden-file-arguments ((pred identity) '("--hidden")))
      (file-wildcard-arguments
       ((and x (pred identity))
        (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))
-     (directory-arguments (x x))
+     (root-arguments ('(".") nil)
+                     (x x))
      (group-arguments ('nil '("--no-heading"))
                       (_    '("--heading")))
      (context-arguments . ,urgrep--context-arguments)
@@ -379,7 +396,7 @@ See also `grep-process-setup'."
      (executable-name . "ag")
      (regexp-syntax pcre)
      (arguments executable (:abbreviate color) hidden-file file-wildcard group
-                context case-fold regexp "--" query directory)
+                context case-fold regexp "--" query root)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ('nil '("-s"))
                           (_    '("-i")))
@@ -387,7 +404,8 @@ See also `grep-process-setup'."
      (file-wildcard-arguments
       ((and x (pred identity))
        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))
-     (directory-arguments (x x))
+     (root-arguments ('(".") nil)
+                     (x x))
      (group-arguments ('nil '("--nogroup"))
                       (_    '("--group")))
      (context-arguments . ,urgrep--context-arguments)
@@ -398,7 +416,7 @@ See also `grep-process-setup'."
      (executable-name . "ack")
      (regexp-syntax pcre)
      (arguments executable (:abbreviate color) hidden-file file-wildcard group
-                context case-fold regexp "--" query directory)
+                context case-fold regexp "--" query root)
      (regexp-arguments ('nil '("-Q")))
      (case-fold-arguments ((pred identity) '("-i")))
      (hidden-file-arguments ('nil '("--ignore-dir=match:/^\\./"
@@ -406,7 +424,8 @@ See also `grep-process-setup'."
      (file-wildcard-arguments
       ((and x (pred identity))
        (list "-G" (urgrep--wildcards-to-regexp x 'pcre))))
-     (directory-arguments (x x))
+     (root-arguments ('(".") nil)
+                     (x x))
      (group-arguments ('nil '("--nogroup"))
                       (_    '("--group")))
      (context-arguments . ,urgrep--context-arguments)
@@ -611,7 +630,7 @@ it up in `urgrep-tools'.  Otherwise, return TOOL as-is."
 
 ;;;###autoload
 (cl-defun urgrep-command (query &key tool regexp (case-fold 'inherit) hidden
-                                file-wildcard directory (group t) (context 0)
+                                file-wildcard (root ".") (group t) (context 0)
                                 (color t))
   "Return a command to use to search for QUERY.
 Several keyword arguments can be supplied to adjust the resulting
@@ -634,8 +653,10 @@ HIDDEN: non-nil to search in hidden files; defaults to nil.
 FILE-WILDCARD: a wildcard (or list of wildcards) to limit the
 files searched.
 
-DIRECTORY: the directory (or list of directories) to search in;
-if nil (the default), search in `default-directory'.
+ROOT: a file/directory (or list thereof) to search in; by
+default, search within `default-directory'.  If nil, don't search
+anywhere; this is useful when making a template command, e.g. to
+use with \"xargs\".
 
 GROUP: show results grouped by filename (t, the default), or if
 nil, prefix the filename on each result line.
@@ -649,7 +670,7 @@ COLOR: non-nil (the default) if the output should use color."
   (with-connection-local-variables
    (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
           (file-wildcard (ensure-list file-wildcard))
-          (directory (mapcar #'urgrep--safe-file-name (ensure-list directory)))
+          (root (mapcar #'urgrep--safe-file-name (ensure-list root)))
           (tool (or (urgrep-get-tool tool)
                     (error "unknown tool %s" tool)))
           (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
@@ -664,14 +685,14 @@ COLOR: non-nil (the default) if the output should use color."
      (if cmd-fun
          (funcall cmd-fun query :tool tool :regexp tool-re-syntax
                   :case-fold case-fold :hidden hidden
-                  :file-wildcard file-wildcard :directory directory
+                  :file-wildcard file-wildcard :root root
                   :group group :context context :color color)
        (urgrep--interpolate-arguments query tool
                                       `((regexp        . ,tool-re-syntax)
                                         (case-fold     . ,case-fold)
                                         (hidden-file   . ,hidden)
                                         (file-wildcard . ,file-wildcard)
-                                        (directory     . ,directory)
+                                        (root          . ,root)
                                         (group         . ,group)
                                         (context       . ,context)
                                         (color         . ,color)))))))
@@ -1359,11 +1380,11 @@ This is meant to be used as a command in Eshell."
          "number of lines of trailing context to print")
      ;; General options
      (?h "help" nil nil "show this help message")
-     :usage "[OPTION]... PATTERN [PATH]...
-Recursively search for PATTERN within PATH.")
+     :usage "[OPTION]... PATTERN [ROOT]...
+Recursively search for PATTERN within ROOT.")
    (unless args (error "Expected a search pattern"))
    (let* ((query (car args))
-          (directory (cdr args))
+          (root (cdr args))
           (context
            (cond
             (context-around (string-to-number context-around))
@@ -1372,7 +1393,7 @@ Recursively search for PATTERN within PATH.")
                    (if context-after (string-to-number context-after) 0)))))
           options)
      ;; Fill the options to pass to `urgrep'.
-     (when directory (setq options `(:directory ,directory       . ,options)))
+     (when root      (setq options `(:root      ,root            . ,options)))
      (when context   (setq options `(:context   ,context         . ,options)))
      (when hidden    (setq options `(:hidden    ,(car hidden)    . ,options)))
      (when group     (setq options `(:group     ,(car group)     . ,options)))
