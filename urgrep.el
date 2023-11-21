@@ -256,6 +256,15 @@ properties defined in the `urgrep-tools' entry for TOOL."
     ((or `(,c . ,c) (and c (pred numberp))) (list (format "-C%d" c)))
     (`(,b . ,a) (list (format "-B%d" b) (format "-A%d" a)))))
 
+(defun urgrep--add-grep-options (template extra-opts)
+  "Add EXTRA-OPTS to the specified GREP template and return it.
+This function changes match data."
+  (unless (string-match "<C>" template)
+    (error "grep template should have a <C> placeholder"))
+  ;; Locally add options to the template that grep.el isn't aware of.
+  (replace-match (concat "<C> " (urgrep--shell-join extra-opts))
+                 t t template))
+
 (cl-defun urgrep--rgrep-command (query &key tool regexp case-fold hidden
                                        file-wildcard root context color
                                        &allow-other-keys)
@@ -272,21 +281,15 @@ ROOT, CONTEXT, and COLOR are as in `urgrep-command'."
                         `((context   . ,context)
                           (case-fold . ,case-fold)
                           (regexp    . ,regexp))))))
-    (if root
-        (let ((file-wildcard
-               (if file-wildcard (string-join file-wildcard " ") "*"))
-              (dirs (urgrep--shell-join root))
-              (grep-find-template grep-find-template)
-              (grep-find-ignored-directories grep-find-ignored-directories)
-              (grep-find-ignored-files grep-find-ignored-files))
-          (save-match-data
-            (unless (string-match "<C>" grep-find-template)
-              (error "`grep-find-template' should have a <C> placeholder"))
-            ;; Locally add options to `grep-find-template' that grep.el isn't
-            ;; aware of.
-            (setq grep-find-template
-                  (replace-match (concat "<C> " (urgrep--shell-join extra-opts))
-                                 t t grep-find-template))
+    (save-match-data
+      (if root
+          (let ((file-wildcard
+                 (if file-wildcard (string-join file-wildcard " ") "*"))
+                (dirs (urgrep--shell-join root))
+                (grep-find-template (urgrep--add-grep-options
+                                     grep-find-template extra-opts))
+                (grep-find-ignored-directories grep-find-ignored-directories)
+                (grep-find-ignored-files grep-find-ignored-files))
             (unless hidden
               ;; Ignore all dotfiles.
               (let ((pred (lambda (s) (not (string-prefix-p "." s)))))
@@ -302,9 +305,10 @@ ROOT, CONTEXT, and COLOR are as in `urgrep-command'."
                      command)
                 (put-text-property (match-beginning 1) (match-end 1)
                                    'abbreviated-command t command))
-              command)))
-      ;; No ROOT, so do a regular `grep'.
-      (grep-expand-template grep-template query nil nil nil extra-opts))))
+              command))
+        ;; No ROOT, so do a regular `grep'.
+        (grep-expand-template
+         (urgrep--add-grep-options grep-template extra-opts) query)))))
 
 (cl-defun urgrep--git-grep-command (query &key tool regexp case-fold hidden
                                           file-wildcard root group context
