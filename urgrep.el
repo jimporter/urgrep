@@ -1217,7 +1217,7 @@ future searches."
 (cl-defun urgrep--read-query (initial &key tool (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)
                                       (hidden urgrep-search-hidden-files)
-                                      (files urgrep-file-wildcards)
+                                      (file-wildcard urgrep-file-wildcards)
                                       (group urgrep-group-matches)
                                       (context urgrep-context-lines)
                                       (default (and (not initial)
@@ -1242,7 +1242,7 @@ point."
            (urgrep-search-regexp regexp)
            (urgrep-case-fold case-fold)
            (urgrep-search-hidden-files hidden)
-           (urgrep-file-wildcards files)
+           (urgrep-file-wildcards file-wildcard)
            (urgrep-context-lines context)
            (prompt (urgrep--search-prompt default))
            (query (minibuffer-with-setup-hook
@@ -1252,7 +1252,7 @@ point."
            (query (if (equal query "") default query)))
       (list query :tool urgrep-current-tool :regexp urgrep-search-regexp
             :case-fold urgrep-case-fold :hidden urgrep-search-hidden-files
-            :files urgrep-file-wildcards :group group
+            :file-wildcard urgrep-file-wildcards :group group
             :context urgrep-context-lines))))
 
 (defun urgrep--read-command (command)
