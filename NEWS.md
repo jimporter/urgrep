@@ -1,6 +1,6 @@
 # Urgrep News
 
-## v0.3.0 (in progress)
+## v0.3.0 (2023-12-17)
 
 ### New features
 - Add optional `urgrep-xref` feature, which lets Xref use Urgrep to create the
