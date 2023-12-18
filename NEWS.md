@@ -1,5 +1,12 @@
 # Urgrep News
 
+## v0.3.1 (in progress)
+
+### Bug fixes
+- Fix invocation of `ripgrep` and `urgrep` on Windows
+
+---
+
 ## v0.3.0 (2023-12-17)
 
 ### New features

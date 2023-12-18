@@ -139,66 +139,68 @@ joined to compare against COMMAND."
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       `(,@common-args "--heading" "--break" "-F" "-e" "Foo"))
+       `(,@common-args "--heading" "--break" "-F" "-e" "Foo" "."))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         `(,@common-args "--heading" "--break" "-F" "-e" "foo")))
+         `(,@common-args "--heading" "--break" "-F" "-e" "foo" ".")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       `(,@common-args "--heading" "--break" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-i" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       `(,@common-args "--heading" "--break" "-F" "-e" "Foo")))
+       `(,@common-args "--heading" "--break" "-F" "-e" "Foo" ".")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       `(,@common-args "-i" "-F" "-e" "foo")))
+       `(,@common-args "-i" "-F" "-e" "foo" ".")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)"))
+       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)"))
+       `(,@common-args "--heading" "--break" "-i" "-G" "-e" "(foo)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       `(,@common-args "--heading" "--break" "-i" "-E" "-e" "(foo)"))
+       `(,@common-args "--heading" "--break" "-i" "-E" "-e" "(foo)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       `(,@common-args "--heading" "--break" "-i" "-P" "-e" "(foo)")))
+       `(,@common-args "--heading" "--break" "-i" "-P" "-e" "(foo)" ".")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo"))
+       `(,@common-args "--heading" "--break" "-C3" "-i" "-F" "-e" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       `(,@common-args "--heading" "--break" "-B2" "-A4" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--heading" "--break" "-B2" "-A4" "-i" "-F" "-e" "foo"
+                       ".")))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       `(,@common-args "--hidden" "--heading" "--break" "-i" "-F" "-e" "foo")))
+       `(,@common-args "--hidden" "--heading" "--break" "-i" "-F" "-e" "foo"
+                       ".")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :file-wildcard "*.el")
        `(,@common-args "--include=*.el" "--heading" "--break" "-i" "-F" "-e"
-                       "foo"))
+                       "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :file-wildcard '("*.c" "*.h"))
        `(,@common-args "--include=*.c" "--include=*.h" "--heading" "--break"
-                       "-i" "-F" "-e" "foo")))
+                       "-i" "-F" "-e" "foo" ".")))
     (ert-info ("Root")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :root "dir")
@@ -218,75 +220,77 @@ joined to compare against COMMAND."
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
        '("ugrep" "--color=never" "-rn" "--ignore-files" "--heading"
-         "--break" "-i" "-F" "-e" "foo")))))
+         "--break" "-i" "-F" "-e" "foo" ".")))))
 
 (ert-deftest urgrep-tests/command/ripgrep ()
   (let ((tool (assq 'ripgrep urgrep-tools))
         (common-args '("rg" "--color=always" "--colors=path:none"
                        "--colors=path:fg:magenta" "--colors=line:none"
                        "--colors=column:none" "--colors=match:none"
-                       "--colors=match:fg:red" "--colors=match:style:bold")))
+                       "--colors=match:fg:red" "--colors=match:style:bold"
+                       "-n")))
     (ert-info ("String/case")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool)
-       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool)
-       `(,@common-args "--heading" "-F" "--" "Foo"))
+       `(,@common-args "--heading" "-F" "--" "Foo" "."))
       (let ((case-fold-search nil))
         (urgrep-tests/check-command
          (urgrep-command "foo" :tool tool)
-         `(,@common-args "--heading" "-F" "--" "foo")))
+         `(,@common-args "--heading" "-F" "--" "foo" ".")))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold t)
-       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold nil)
-       `(,@common-args "--heading" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :case-fold 'smart)
-       `(,@common-args "--heading" "-i" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "Foo" :tool tool :case-fold 'smart)
-       `(,@common-args "--heading" "-F" "--" "Foo")))
+       `(,@common-args "--heading" "-F" "--" "Foo" ".")))
     (ert-info ("Group")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :group nil)
-       `(,@common-args "--no-heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "--no-heading" "-i" "-F" "--" "foo" ".")))
     (ert-info ("Regexp")
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp t)
-       `(,@common-args "--heading" "-i" "--" "\\(foo\\)"))
+       `(,@common-args "--heading" "-i" "--" "\\(foo\\)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'bre)
-       `(,@common-args "--heading" "-i" "--" "\\(foo\\)"))
+       `(,@common-args "--heading" "-i" "--" "\\(foo\\)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'ere)
-       `(,@common-args "--heading" "-i" "--" "(foo)"))
+       `(,@common-args "--heading" "-i" "--" "(foo)" "."))
       (urgrep-tests/check-command
        (urgrep-command "(foo)" :tool tool :regexp 'pcre)
-       `(,@common-args "--heading" "-i" "--" "(foo)")))
+       `(,@common-args "--heading" "-i" "--" "(foo)" ".")))
     (ert-info ("Context")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context 3)
-       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(3 . 3))
-       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo"))
+       `(,@common-args "--heading" "-C3" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :context '(2 . 4))
-       `(,@common-args "--heading" "-B2" "-A4" "-i" "-F" "--" "foo")))
+       `(,@common-args "--heading" "-B2" "-A4" "-i" "-F" "--" "foo" ".")))
     (ert-info ("Hidden files")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :hidden t)
-       `(,@common-args "--hidden" "--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "--hidden" "--heading" "-i" "-F" "--" "foo" ".")))
     (ert-info ("File wildcard")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :file-wildcard "*.el")
-       `(,@common-args "-g" "*.el" "--heading" "-i" "-F" "--" "foo"))
+       `(,@common-args "-g" "*.el" "--heading" "-i" "-F" "--" "foo" "."))
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :file-wildcard '("*.c" "*.h"))
-       `(,@common-args "-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--" "foo")))
+       `(,@common-args "-g" "*.c" "-g" "*.h" "--heading" "-i" "-F" "--" "foo"
+                       ".")))
     (ert-info ("Root")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :root "dir")
@@ -304,7 +308,7 @@ joined to compare against COMMAND."
     (ert-info ("Color")
       (urgrep-tests/check-command
        (urgrep-command "foo" :tool tool :color nil)
-       '("rg" "--color=never" "--heading" "-i" "-F" "--" "foo")))))
+       '("rg" "--color=never" "-n" "--heading" "-i" "-F" "--" "foo" ".")))))
 
 (ert-deftest urgrep-tests/command/ag ()
   (let ((tool (assq 'ag urgrep-tools))

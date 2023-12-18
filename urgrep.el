@@ -366,8 +366,7 @@ See also `grep-process-setup'."
      (file-wildcard-arguments
       ((and x (pred identity))
        (mapcar (lambda (i) (concat "--include=" i)) x)))
-     (root-arguments ('(".") nil)
-                     (x x))
+     (root-arguments (x x))
      (group-arguments ((pred identity) '("--heading" "--break")))
      (context-arguments . ,urgrep--context-arguments)
      (color-arguments
@@ -377,16 +376,15 @@ See also `grep-process-setup'."
     (ripgrep
      (executable-name . "rg")
      (regexp-syntax pcre)
-     (arguments executable (:abbreviate color) hidden-file file-wildcard group
-                context case-fold regexp "--" query root)
+     (arguments executable (:abbreviate color "-n") hidden-file file-wildcard
+                group context case-fold regexp "--" query root)
      (regexp-arguments ('nil '("-F")))
      (case-fold-arguments ((pred identity) '("-i")))
      (hidden-file-arguments ((pred identity) '("--hidden")))
      (file-wildcard-arguments
       ((and x (pred identity))
        (flatten-list (mapcar (lambda (i) (cons "-g" i)) x))))
-     (root-arguments ('(".") nil)
-                     (x x))
+     (root-arguments (x x))
      (group-arguments ('nil '("--no-heading"))
                       (_    '("--heading")))
      (context-arguments . ,urgrep--context-arguments)
