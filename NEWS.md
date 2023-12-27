@@ -1,6 +1,9 @@
 # Urgrep News
 
-## v0.3.1 (in progress)
+## v0.4.0 (in progress)
+
+### New features
+- Add support for `outline-minor-mode`
 
 ### Bug fixes
 - Fix invocation of `ripgrep` and `urgrep` on Windows

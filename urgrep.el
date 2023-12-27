@@ -4,7 +4,7 @@
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
-;; Version: 0.3.1-git
+;; Version: 0.4.0-git
 ;; Keywords: grep, search
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.0.1") (project "0.3.0"))
 
@@ -36,6 +36,7 @@
 (require 'compile)
 (require 'generator)
 (require 'grep)
+(require 'outline)
 (require 'project)
 (require 'shell)                        ; For `shell--parse-pcomplete-arguments'
 (require 'text-property-search)
@@ -702,6 +703,14 @@ COLOR: non-nil (the default) if the output should use color."
 
 ;; urgrep-mode
 
+(defvar outline-search-function)
+(defvar outline-level)
+(defvar outline-minor-mode-use-buttons)
+
+(declare-function outline-cycle "outline" (&optional event))
+(declare-function outline-search-text-property "outline"
+                  (property &optional value bound move backward looking-at))
+
 (defvar urgrep-file-wildcards nil
   "Zero or more wildcards to limit the files searched.")
 (defvar urgrep-num-matches-found 0
@@ -713,6 +722,8 @@ COLOR: non-nil (the default) if the output should use color."
 
 (defvar-local urgrep--filter-start nil
   "The in-buffer position to start `urgrep-filter'.")
+(defvar-local urgrep--filter-last-file nil
+  "The previously-found file name in `urgrep-filter'.")
 
 ;; Set the first column to 0 because that's how we currently count.
 ;; XXX: It might be worth changing this to 1 if we allow reading the column
@@ -976,10 +987,14 @@ This function is called from `compilation-filter-hook'."
                                        (group (*? anything))
                                        (ansi-sgr (? "0")))
                                    end t)
-                (replace-match
-                 (propertize (match-string 1) 'face nil
-                             'font-lock-face 'urgrep-hit 'urgrep-file-name t)
-                 t t))
+                (let* ((file-name (match-string 1))
+                       (same-file (equal file-name urgrep--filter-last-file)))
+                  (replace-match
+                   (propertize file-name 'face nil
+                               'font-lock-face 'urgrep-hit
+                               'urgrep-file-name (if same-file 'repeat 'first))
+                   t t)
+                  (setq urgrep--filter-last-file file-name)))
                ;; Highlight matches and delete ANSI SGR escapes.
                ((re-search-forward (rx point
                                        (or ;; Find the escapes together...
@@ -1008,6 +1023,19 @@ This function is called from `compilation-filter-hook'."
                (t (throw 'done nil))))))
         (setq urgrep--filter-start (point))))))
 
+(defun urgrep-outline-search (&optional bound move backward looking-at)
+  "Search for outline headings.  See `outline-search-function'."
+  (outline-search-text-property 'urgrep-file-name 'first bound move backward
+                                looking-at))
+
+(defun urgrep-goto-match-or-outline-cycle (&optional event)
+  "Visit the source for the match at point or cycle outline visibility.
+If non-nil, EVENT should be a mouse event."
+  (interactive (list last-input-event))
+  (condition-case nil
+      (compile-goto-error event)
+    (error (outline-cycle event))))
+
 (define-compilation-mode urgrep-mode "Urgrep"
   "A compilation mode for various grep-like tools."
   (setq-local tool-bar-map urgrep-mode-tool-bar-map
@@ -1017,7 +1045,17 @@ This function is called from `compilation-filter-hook'."
               compilation-mode-line-errors urgrep-mode-line-matches
               compilation-disable-input t
               compilation-error-screen-columns nil
-              urgrep--filter-start nil)
+              outline-search-function #'urgrep-outline-search
+              outline-level (lambda () 1)
+              outline-minor-mode-use-buttons 'in-margins
+              urgrep--filter-start nil
+              urgrep--filter-last-file nil)
+  ;; Locally override the button map for `outline-minor-mode'.
+  (when (boundp 'outline-overlay-button-map)
+    (setq-local outline-overlay-button-map
+                (define-keymap
+                  :parent outline-overlay-button-map
+                  "RET" #'urgrep-goto-match-or-outline-cycle)))
   (add-hook 'compilation-filter-hook #'urgrep-filter nil t))
 
 (defun urgrep--hide-abbreviations (command)
