@@ -507,7 +507,7 @@ This can be nil to use the default list of tools in `urgrep-tools'
 or a list of tools to try in descending order of preference.  Each
 tool can be either a symbol naming the tool or a cons cell of the
 tool name and the file name of the executable (or a list thereof
-if there are multiple exeuctables)."
+if there are multiple executables)."
   :type `(choice
           (const :tag "Default" nil)
           (repeat :tag "List of tools"
