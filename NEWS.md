@@ -1,6 +1,6 @@
 # Urgrep News
 
-## v0.4.0 (in progress)
+## v0.4.0 (2024-01-22)
 
 ### New features
 - Add support for `outline-minor-mode`
