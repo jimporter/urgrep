@@ -993,19 +993,22 @@ This function is called from `compilation-filter-hook'."
                   (unless (re-search-forward (rx (ansi-sgr (? "0"))) end t)
                     ;; The filename is incomplete.  Try again next time.
                     (throw 'done nil))
-                  (unless (= file-name-begin (match-beginning 0))
-                    (setq file-name (buffer-substring-no-properties
-                                     file-name-begin (match-beginning 0))
-                          same-file (equal file-name urgrep--filter-last-file)
-                          urgrep--filter-last-file file-name)
-                    (add-text-properties
-                     file-name-begin (match-beginning 0)
-                     `( face nil
-                        font-lock-face urgrep-hit
-                        urgrep-file-name ,(if same-file 'repeat 'first))))
-                  ;; Remove the control sequences.
-                  (replace-match "" t t)
-                  (delete-region cseq-begin file-name-begin)))
+                  (combine-change-calls cseq-begin (match-end 0)
+                    ;; Ugrep produces empty "filename" ANSI sequences after the
+                    ;; real filename+sequence.
+                    (unless (= file-name-begin (match-beginning 0))
+                      (setq file-name (buffer-substring-no-properties
+                                       file-name-begin (match-beginning 0))
+                            same-file (equal file-name urgrep--filter-last-file)
+                            urgrep--filter-last-file file-name)
+                      (add-text-properties
+                       file-name-begin (match-beginning 0)
+                       `( face nil
+                          font-lock-face urgrep-hit
+                          urgrep-file-name ,(if same-file 'repeat 'first))))
+                    ;; Remove the control sequences.
+                    (replace-match "" t t)
+                    (delete-region cseq-begin file-name-begin))))
                ;; Highlight matches and delete ANSI SGR escapes.
                ((looking-at (rx (or ;; Find the escapes together...
                                  (ansi-sgr (or "01" "1") ";31")
@@ -1018,11 +1021,13 @@ This function is called from `compilation-filter-hook'."
                     ;; The match is incomplete.  Try again next time.
                     (throw 'done nil))
                   (cl-incf urgrep-num-matches-found)
-                  (add-text-properties match-begin (match-beginning 0)
-                                       '(face nil font-lock-face urgrep-match))
-                  ;; Remove the control sequences.
-                  (replace-match "" t t)
-                  (delete-region cseq-begin match-begin)))
+                  (combine-change-calls cseq-begin (match-end 0)
+                    (add-text-properties
+                     match-begin (match-beginning 0)
+                     '(face nil font-lock-face urgrep-match))
+                    ;; Remove the control sequences.
+                    (replace-match "" t t)
+                    (delete-region cseq-begin match-begin))))
                ;; If nothing matched, just proceed forward.
                (t (forward-char))))))
             (setq urgrep--filter-start (point))))))

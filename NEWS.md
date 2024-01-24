@@ -1,5 +1,12 @@
 # Urgrep News
 
+## v0.4.1 (in progress)
+
+### Bug fixes
+- Fix highlighting of matches when using Ugrep
+
+---
+
 ## v0.4.0 (2024-01-22)
 
 ### New features
