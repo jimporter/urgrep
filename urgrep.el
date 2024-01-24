@@ -980,48 +980,52 @@ This function is called from `compilation-filter-hook'."
                 (throw 'done nil))
               (cond
                ;; Delete "erase in line" ANSI CSI sequence.
-               ((re-search-forward (rx point (ansi-cseq (* digit) "K")) end t)
+               ((looking-at (rx (ansi-cseq (* digit) "K")))
                 (replace-match "" t t))
-               ;; Highlight matching filenames and delete ANSI SGR escapes.
-               ((re-search-forward (rx bol point (ansi-sgr "35")
-                                       (group (*? anything))
-                                       (ansi-sgr (? "0")))
-                                   end t)
-                (let* ((file-name (match-string 1))
-                       (same-file (equal file-name urgrep--filter-last-file)))
-                  (replace-match
-                   (propertize file-name 'face nil
-                               'font-lock-face 'urgrep-hit
-                               'urgrep-file-name (if same-file 'repeat 'first))
-                   t t)
-                  (setq urgrep--filter-last-file file-name)))
+               ;; Delete "reset" ANSI SGR escape.
+               ((looking-at (rx (ansi-sgr (? "0"))))
+                (replace-match "" t t))
+               ;; Highlight matching filenames and delete ANSI SGR escapea.
+               ((looking-at (rx (ansi-sgr "35")))
+                (let ((cseq-begin (match-beginning 0))
+                      (file-name-begin (match-end 0))
+                      file-name same-file)
+                  (unless (re-search-forward (rx (ansi-sgr (? "0"))) end t)
+                    ;; The filename is incomplete.  Try again next time.
+                    (throw 'done nil))
+                  (unless (= file-name-begin (match-beginning 0))
+                    (setq file-name (buffer-substring-no-properties
+                                     file-name-begin (match-beginning 0))
+                          same-file (equal file-name urgrep--filter-last-file)
+                          urgrep--filter-last-file file-name)
+                    (add-text-properties
+                     file-name-begin (match-beginning 0)
+                     `( face nil
+                        font-lock-face urgrep-hit
+                        urgrep-file-name ,(if same-file 'repeat 'first))))
+                  ;; Remove the control sequences.
+                  (replace-match "" t t)
+                  (delete-region cseq-begin file-name-begin)))
                ;; Highlight matches and delete ANSI SGR escapes.
-               ((re-search-forward (rx point
-                                       (or ;; Find the escapes together...
-                                        (ansi-sgr (or "01" "1") ";31")
-                                        ;; ... or apart.
-                                        (seq (ansi-sgr (or "01" "1"))
-                                             (ansi-sgr "31")))
-                                       ;; Matches always stop by end of line.
-                                       ;; (Multi-line matches get restarted
-                                       ;; after the line number is printed.)
-                                       (group (*? nonl) (? "\n"))
-                                       (ansi-sgr (? "0")))
-                                   end t)
-                (replace-match
-                 (propertize (match-string 1) 'face nil
-                             'font-lock-face 'urgrep-match)
-                 t t)
-                (cl-incf urgrep-num-matches-found))
-               ;; Delete no-op ANSI SGR escapes.
-               ((re-search-forward (rx point (ansi-sgr (? "0"))
-                                       (group (*? anything))
-                                       (ansi-sgr (? "0")))
-                                   end t)
-                (replace-match (match-string 1) t t))
-               ;; If nothing matched, try again next time.
-               (t (throw 'done nil))))))
-        (setq urgrep--filter-start (point))))))
+               ((looking-at (rx (or ;; Find the escapes together...
+                                 (ansi-sgr (or "01" "1") ";31")
+                                 ;; ... or apart.
+                                 (seq (ansi-sgr (or "01" "1"))
+                                      (ansi-sgr "31")))))
+                (let ((cseq-begin (match-beginning 0))
+                      (match-begin (match-end 0)))
+                  (unless (re-search-forward (rx (ansi-sgr (? "0"))) end t)
+                    ;; The match is incomplete.  Try again next time.
+                    (throw 'done nil))
+                  (cl-incf urgrep-num-matches-found)
+                  (add-text-properties match-begin (match-beginning 0)
+                                       '(face nil font-lock-face urgrep-match))
+                  ;; Remove the control sequences.
+                  (replace-match "" t t)
+                  (delete-region cseq-begin match-begin)))
+               ;; If nothing matched, just proceed forward.
+               (t (forward-char))))))
+            (setq urgrep--filter-start (point))))))
 
 (defun urgrep-outline-search (&optional bound move backward looking-at)
   "Search for outline headings.  See `outline-search-function'."
