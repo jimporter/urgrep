@@ -13,7 +13,7 @@
 - Add support for `outline-minor-mode`
 
 ### Bug fixes
-- Fix invocation of `ripgrep` and `urgrep` on Windows
+- Fix invocation of `ripgrep` and `ugrep` on Windows
 
 ---
 
