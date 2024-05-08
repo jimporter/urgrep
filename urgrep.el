@@ -4,7 +4,7 @@
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
-;; Version: 0.4.2-git
+;; Version: 0.5.0-git
 ;; Keywords: grep, search
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.0.1") (project "0.3.0"))
 
@@ -743,6 +743,60 @@ If EDIT-COMMAND is non-nil, the search can be edited."
                     query)))
     (urgrep--start command query urgrep-current-tool)))
 
+(defmacro urgrep-adjust-query (prop &rest body)
+  "Adjust the current search query by updating PROP.
+This gets PROP from `urgrep-current-query' and let-binds it to a
+variable of the same name, excluding the leading colon (so,
+e.g. `:context' becomes `context'), and then evaluates BODY.
+Finally, this sets PROP to BODY's return value and re-runs the
+search."
+  (declare (indent 1))
+  (unless (keywordp prop)
+    (error "invalid PROP %S" prop))
+  (let ((prop-variable (intern (substring (symbol-name prop) 1))))
+    `(if (not (listp urgrep-current-query))
+         (error "nope")
+       (let* ((new-value
+               (let ((,prop-variable (plist-get (cdr urgrep-current-query)
+                                                ,prop)))
+                 ,@body))
+              (new-query (cons (car urgrep-current-query)
+                               (plist-put (cdr urgrep-current-query)
+                                          ,prop new-value))))
+         (urgrep--start (apply #'urgrep-command new-query) new-query
+                        urgrep-current-tool)))))
+
+(defun urgrep-expand-context (&optional lines)
+  "Expand the context of the current query by LINES.
+If LINES is nil, expand the context by one line."
+  (interactive "p")
+  (setq lines (or lines 1))
+  (urgrep-adjust-query :context
+    (if (consp context)
+        (cons (max (+ (car context) lines) 0)
+              (max (+ (cdr context) lines) 0))
+      (max (+ (or context 0) lines) 0))))
+
+(defun urgrep-expand-before-context (&optional lines)
+  "Expand the before-context of the current query by LINES.
+If LINES is nil, expand the before-context by one line."
+  (interactive "p")
+  (setq lines (or lines 1))
+  (urgrep-adjust-query :context
+    (let ((context (if (consp context) context
+                     (cons (or context 0) (or context 0)))))
+      (cons (max (+ (car context) lines) 0) (cdr context)))))
+
+(defun urgrep-expand-after-context (&optional lines)
+  "Expand the after-context of the current query by LINES.
+If LINES is nil, expand the after-context by one line."
+  (interactive "p")
+  (setq lines (or lines 1))
+  (urgrep-adjust-query :context
+    (let ((context (if (consp context) context
+                     (cons (or context 0) (or context 0)))))
+      (cons (car context) (max (+ (cdr context) lines) 0)))))
+
 (defvar-keymap urgrep-mode-map
   ;; Don't inherit from `compilation-minor-mode-map', because that introduces a
   ;; menu bar item we don't want.
@@ -763,7 +817,10 @@ If EDIT-COMMAND is non-nil, the search can be edited."
   "}"             #'compilation-next-file
   "TAB"           #'compilation-next-error
   "<backtab>"     #'compilation-previous-error
-  "g"             #'urgrep-search-again)
+  "g"             #'urgrep-search-again
+  "C"             #'urgrep-expand-context
+  "B"             #'urgrep-expand-before-context
+  "A"             #'urgrep-expand-after-context)
 
 (easy-menu-define urgrep-menu-map urgrep-mode-map
   "Menu for urgrep buffers."

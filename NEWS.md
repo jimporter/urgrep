@@ -1,5 +1,12 @@
 # Urgrep News
 
+## v0.5.0 (in progress)
+
+### New features
+- Add ability to adjust the context of search results in the results buffer
+
+---
+
 ## v0.4.1 (2024-03-10)
 
 ### Bug fixes

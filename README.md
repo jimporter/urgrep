@@ -53,6 +53,14 @@ Isearch-like key bindings to let you modify the search's behavior:
 In addition to the above, you can call `urgrep-run-command`, which works like
 `urgrep` but allows you to manually edit the command before executing it.
 
+### Modifying your search
+
+After performing a search, you can adjust an existing query with <kbd>C-u</kbd>
+<kbd>g</kbd>, reopening the original search prompt. You can also adjust the
+context directly via `C`, `B`, or `A` to change the context, leading context, or
+trailing context, respectively. By default, these expand the context by one
+line, but with a prefix argument, you can change by *N* lines.
+
 ### Configuring the tool to use
 
 By default, Urgrep tries all search tools it's aware of to find the best option.
