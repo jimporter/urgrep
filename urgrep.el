@@ -752,10 +752,10 @@ Finally, this sets PROP to BODY's return value and re-runs the
 search."
   (declare (indent 1))
   (unless (keywordp prop)
-    (error "invalid PROP %S" prop))
+    (error "Invalid PROP %S" prop))
   (let ((prop-variable (intern (substring (symbol-name prop) 1))))
     `(if (not (listp urgrep-current-query))
-         (error "nope")
+         (error "Unable to determine query properties")
        (let* ((new-value
                (let ((,prop-variable (plist-get (cdr urgrep-current-query)
                                                 ,prop)))
