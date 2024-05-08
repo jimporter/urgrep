@@ -197,7 +197,7 @@ for MS shells."
 This expands tildes and removes any remote host identifiers or quoting."
   (when-let ((remote (file-remote-p file)))
     (unless (equal remote (file-remote-p default-directory))
-      (error "remote file doesn't match host for `default-directory'"))
+      (error "Remote file doesn't match host for `default-directory'"))
     (setq file (file-local-name file)))
   (setq file (file-name-unquote file))
   (if (not (string-prefix-p "~" file))
@@ -261,7 +261,7 @@ properties defined in the `urgrep-tools' entry for TOOL."
   "Add EXTRA-OPTS to the specified GREP template and return it.
 This function changes match data."
   (unless (string-match "<C>" template)
-    (error "grep template should have a <C> placeholder"))
+    (error "Grep template should have a <C> placeholder"))
   ;; Locally add options to the template that grep.el isn't aware of.
   (replace-match (concat "<C> " (urgrep--shell-join extra-opts))
                  t t template))
@@ -675,7 +675,7 @@ COLOR: non-nil (the default) if the output should use color."
           (file-wildcard (ensure-list file-wildcard))
           (root (mapcar #'urgrep--safe-file-name (ensure-list root)))
           (tool (or (urgrep-get-tool tool)
-                    (error "unknown tool %s" tool)))
+                    (error "Unknown tool %s" tool)))
           (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
           (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
           (cmd-fun (urgrep--get-prop 'command-function tool)))
