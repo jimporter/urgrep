@@ -63,7 +63,7 @@ the search options, such as case folding, immediately:
 | Key binding  | Action                            |
 |:-------------|:----------------------------------|
 | <kbd>c</kbd> | Toggle case folding               |
-| <kdb>H</kbd> | Toggle searching in hidden files  |
+| <kbd>H</kbd> | Toggle searching in hidden files  |
 | <kbd>C</kbd> | Expand lines of context¹          |
 | <kbd>B</kbd> | Expand lines of leading context¹  |
 | <kbd>A</kbd> | Expand lines of trailing context¹ |
