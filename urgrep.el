@@ -631,6 +631,18 @@ it up in `urgrep-tools'.  Otherwise, return TOOL as-is."
           ((and (eq syntax 'pcre) (memq 'extended tool-syntaxes)) 'ere)
           (t (car tool-syntaxes)))))
 
+(defun urgrep--case-fold-p (case-fold query regexp-syntax)
+  "Return whether to enable case folding.
+If CASE-FOLD is `inherit' or `smart', guess based on the QUERY
+and REGEXP-SYNTAX.  Otherwise, just return CASE-FOLD."
+  (when (eq case-fold 'inherit)
+    (setq case-fold (if case-fold-search 'smart nil)))
+  (when (eq case-fold 'smart)
+    (when regexp-syntax
+      (setq query (urgrep--convert-regexp query regexp-syntax 'bre)))
+    (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
+  case-fold)
+
 ;;;###autoload
 (cl-defun urgrep-command (query &key tool regexp (case-fold 'inherit) hidden
                                 file-wildcard (root ".") (group t) (context 0)
@@ -671,19 +683,15 @@ respectively).
 
 COLOR: non-nil (the default) if the output should use color."
   (with-connection-local-variables
-   (let* ((regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
+   (let* ((tool (or (urgrep-get-tool tool)
+                    (error "Unknown tool %s" tool)))
+          (regexp-syntax (if (eq regexp t) urgrep-regexp-syntax regexp))
+          (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
+          (case-fold (urgrep--case-fold-p case-fold query regexp-syntax))
           (file-wildcard (ensure-list file-wildcard))
           (root (mapcar #'urgrep--safe-file-name (ensure-list root)))
-          (tool (or (urgrep-get-tool tool)
-                    (error "Unknown tool %s" tool)))
-          (tool-re-syntax (urgrep--get-best-syntax regexp-syntax tool))
           (query (urgrep--convert-regexp query regexp-syntax tool-re-syntax))
           (cmd-fun (urgrep--get-prop 'command-function tool)))
-     ;; Determine whether to search case-sensitively or not.
-     (when (eq case-fold 'inherit)
-       (setq case-fold (if case-fold-search 'smart nil)))
-     (when (eq case-fold 'smart)
-       (setq case-fold (isearch-no-upper-case-p query regexp-syntax)))
      ;; Build the command arguments.
      (if cmd-fun
          (funcall cmd-fun query :tool tool :regexp tool-re-syntax
@@ -766,9 +774,24 @@ search."
          (urgrep--start (apply #'urgrep-command new-query) new-query
                         urgrep-current-tool)))))
 
-(defun urgrep-expand-context (&optional lines)
+(defun urgrep-toggle-current-case-fold ()
+  "Toggle case folding for the current query."
+  (interactive)
+  (urgrep-adjust-query :case-fold
+    (let ((query (car urgrep-current-query))
+          (regexp-syntax (plist-get (cdr urgrep-current-query) :regexp-syntax)))
+      (not (urgrep--case-fold-p case-fold query regexp-syntax)))))
+
+(defun urgrep-toggle-current-search-hidden-files ()
+  "Toggle searching of hidden files for the current query."
+  (interactive)
+  (urgrep-adjust-query :hidden
+    (not hidden)))
+
+(defun urgrep-expand-current-context (&optional lines)
   "Expand the context of the current query by LINES.
-If LINES is nil, expand the context by one line."
+Interactively, LINES is the numeric prefix argument.  If LINES is
+nil, expand the context by one line."
   (interactive "p")
   (setq lines (or lines 1))
   (urgrep-adjust-query :context
@@ -777,9 +800,10 @@ If LINES is nil, expand the context by one line."
               (max (+ (cdr context) lines) 0))
       (max (+ (or context 0) lines) 0))))
 
-(defun urgrep-expand-before-context (&optional lines)
-  "Expand the before-context of the current query by LINES.
-If LINES is nil, expand the before-context by one line."
+(defun urgrep-expand-current-before-context (&optional lines)
+  "Expand the leading context of the current query by LINES.
+Interactively, LINES is the numeric prefix argument.If LINES is
+nil, expand the leading context by one line."
   (interactive "p")
   (setq lines (or lines 1))
   (urgrep-adjust-query :context
@@ -787,9 +811,10 @@ If LINES is nil, expand the before-context by one line."
                      (cons (or context 0) (or context 0)))))
       (cons (max (+ (car context) lines) 0) (cdr context)))))
 
-(defun urgrep-expand-after-context (&optional lines)
-  "Expand the after-context of the current query by LINES.
-If LINES is nil, expand the after-context by one line."
+(defun urgrep-expand-current-after-context (&optional lines)
+  "Expand the trailing context of the current query by LINES.
+Interactively, LINES is the numeric prefix argument.  If LINES is
+nil, expand the trailing context by one line."
   (interactive "p")
   (setq lines (or lines 1))
   (urgrep-adjust-query :context
@@ -818,9 +843,11 @@ If LINES is nil, expand the after-context by one line."
   "TAB"           #'compilation-next-error
   "<backtab>"     #'compilation-previous-error
   "g"             #'urgrep-search-again
-  "C"             #'urgrep-expand-context
-  "B"             #'urgrep-expand-before-context
-  "A"             #'urgrep-expand-after-context)
+  "c"             #'urgrep-toggle-current-case-fold
+  "H"             #'urgrep-toggle-current-search-hidden-files
+  "C"             #'urgrep-expand-current-context
+  "B"             #'urgrep-expand-current-before-context
+  "A"             #'urgrep-expand-current-after-context)
 
 (easy-menu-define urgrep-menu-map urgrep-mode-map
   "Menu for urgrep buffers."
@@ -1325,14 +1352,23 @@ future searches."
 
 (defvar-keymap urgrep-minibuffer-map
   :parent minibuffer-local-map
+  "M-s h" #'urgrep-minibuffer-help
   "M-s r" #'urgrep-toggle-regexp
   "M-s c" #'urgrep-toggle-case-fold
   "M-s f" #'urgrep-set-file-wildcards
-  "M-s h" #'urgrep-toggle-search-hidden-files
+  "M-s H" #'urgrep-toggle-search-hidden-files
   "M-s C" #'urgrep-set-context
   "M-s B" #'urgrep-set-before-context
   "M-s A" #'urgrep-set-after-context
   "M-s t" #'urgrep-set-tool)
+
+(defun urgrep-minibuffer-help ()
+  "Describe key bindings for the Urgrep minibuffer."
+  (interactive)
+  ;; `describe-keymap' is only available in Emacs 28+.
+  (if (fboundp 'describe-keymap)
+      (describe-keymap urgrep-minibuffer-map)
+    (describe-bindings)))
 
 (cl-defun urgrep--read-query (initial &key tool (regexp urgrep-search-regexp)
                                       (case-fold urgrep-case-fold)

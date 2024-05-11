@@ -3,7 +3,10 @@
 ## v0.5.0 (in progress)
 
 ### New features
-- Add ability to adjust the context of search results in the results buffer
+- Add ability to immediately adjust search options in the results buffer
+
+### Breaking changes
+- In the Urgrep minibuffer, toggling search of hidden files now uses `M-s H`
 
 ---
 
