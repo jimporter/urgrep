@@ -1352,15 +1352,16 @@ future searches."
 
 (defvar-keymap urgrep-minibuffer-map
   :parent minibuffer-local-map
-  "M-s h" #'urgrep-minibuffer-help
-  "M-s r" #'urgrep-toggle-regexp
-  "M-s c" #'urgrep-toggle-case-fold
-  "M-s f" #'urgrep-set-file-wildcards
-  "M-s H" #'urgrep-toggle-search-hidden-files
-  "M-s C" #'urgrep-set-context
-  "M-s B" #'urgrep-set-before-context
-  "M-s A" #'urgrep-set-after-context
-  "M-s t" #'urgrep-set-tool)
+  "M-s" (define-keymap :prefix 'urgrep-minibuffer-options-map
+          "h" #'urgrep-minibuffer-help
+          "r" #'urgrep-toggle-regexp
+          "c" #'urgrep-toggle-case-fold
+          "f" #'urgrep-set-file-wildcards
+          "H" #'urgrep-toggle-search-hidden-files
+          "C" #'urgrep-set-context
+          "B" #'urgrep-set-before-context
+          "A" #'urgrep-set-after-context
+          "t" #'urgrep-set-tool))
 
 (defun urgrep-minibuffer-help ()
   "Describe key bindings for the Urgrep minibuffer."
