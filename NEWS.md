@@ -1,6 +1,6 @@
 # Urgrep News
 
-## v0.5.0 (in progress)
+## v0.5.0 (2024-05-11)
 
 ### New features
 - Add ability to immediately adjust search options in the results buffer
