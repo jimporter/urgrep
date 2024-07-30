@@ -1057,7 +1057,8 @@ This function is called from `compilation-filter-hook'."
         (goto-char urgrep--filter-start)
         (catch 'done
           (while (search-forward "\033" end 'limit)
-            (when (eq (char-after) ?\[)
+            (when (or (eq (point) (point-max))
+                      (eq (char-after) ?\[))
               (backward-char)
               (unless (looking-at (rx ansi-any-cseq))
                 ;; This control sequence is incomplete.  Try again next time.
@@ -1114,7 +1115,7 @@ This function is called from `compilation-filter-hook'."
                     (delete-region cseq-begin match-begin))))
                ;; If nothing matched, just proceed forward.
                (t (forward-char))))))
-            (setq urgrep--filter-start (point))))))
+        (setq urgrep--filter-start (point))))))
 
 (defun urgrep-outline-search (&optional bound move backward looking-at)
   "Search for outline headings.  See `outline-search-function'."
