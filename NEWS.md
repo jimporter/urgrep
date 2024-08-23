@@ -1,5 +1,12 @@
 # Urgrep News
 
+## v0.5.1 (2024-08-22)
+
+### Bug fixes
+- Fix an edge case when filtering ANSI escapes
+
+---
+
 ## v0.5.0 (2024-05-11)
 
 ### New features
