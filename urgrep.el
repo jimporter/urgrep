@@ -732,6 +732,8 @@ COLOR: non-nil (the default) if the output should use color."
   "The in-buffer position to start `urgrep-filter'.")
 (defvar-local urgrep--filter-last-file nil
   "The previously-found file name in `urgrep-filter'.")
+(defvar urgrep--filter-last-compilation-filter-hook nil
+  "The value of `compilation-filter-hook' when the process starts.")
 
 ;; Set the first column to 0 because that's how we currently count.
 ;; XXX: It might be worth changing this to 1 if we allow reading the column
@@ -1150,7 +1152,8 @@ If non-nil, EVENT should be a mouse event."
                 (define-keymap
                   :parent outline-overlay-button-map
                   "RET" #'urgrep-goto-match-or-outline-cycle)))
-  (add-hook 'compilation-filter-hook #'urgrep-filter nil t))
+  (add-hook 'compilation-finish-functions #'ugrep--finish)
+  (add-hook 'kill-buffer-hook #'ugrep--finish))
 
 (defun urgrep--hide-abbreviations (command)
   "If `urgrep-abbreviate-command' is non-nil, hide abbreviations in COMMAND."
@@ -1192,6 +1195,10 @@ rerunning the search."
         ;; where to search...
         (let ((urgrep-current-tool tool)
               (default-directory directory))
+          (setq urgrep--filter-last-compilation-filter-hook
+                compilation-filter-hook)
+          ;(add-hook 'compilation-filter-hook #'urgrep-filter nil t)
+          (setq compilation-filter-hook '(urgrep-filter))
           (compilation-start (urgrep--hide-abbreviations command)
                              #'urgrep-mode)))
     ;; ... and then set `default-directory' here to be sure it's up to date.
@@ -1201,6 +1208,15 @@ rerunning the search."
     (setq urgrep-current-query query
           urgrep-current-tool tool)
     (current-buffer)))
+
+(defun ugrep--finish (&rest args)
+  "Called by `compilation-finish-functions' when the grep process ends."
+  (ignore args)
+  (message "MODE: %S" major-mode)
+  (when (and (eq 'urgrep-mode major-mode)
+             (memq 'urgrep-filter compilation-filter-hook))
+    (setq compilation-filter-hook
+          urgrep--filter-last-compilation-filter-hook)))
 
 
 ;; Minibuffer configuration
