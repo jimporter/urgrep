@@ -1212,7 +1212,6 @@ rerunning the search."
 (defun ugrep--finish (&rest args)
   "Called by `compilation-finish-functions' when the grep process ends."
   (ignore args)
-  (message "MODE: %S" major-mode)
   (when (and (eq 'urgrep-mode major-mode)
              (memq 'urgrep-filter compilation-filter-hook))
     (setq compilation-filter-hook
