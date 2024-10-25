@@ -1021,7 +1021,8 @@ See `compilation-error-regexp-alist' for format details.")
   (when-let ((tool-setup (urgrep--get-prop 'process-setup urgrep-current-tool)))
     (funcall tool-setup))
   (setq-local urgrep-num-matches-found 0
-              compilation-exit-message-function #'urgrep-exit-message)
+              compilation-exit-message-function #'urgrep-exit-message
+              ansi-color-for-compilation-mode nil)
   (run-hooks 'urgrep-setup-hook))
 
 (defun urgrep-exit-message (status code msg)

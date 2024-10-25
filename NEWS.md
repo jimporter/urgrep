@@ -1,5 +1,12 @@
 # Urgrep News
 
+## v0.5.2 (in progress)
+
+### Bug fixes
+- Disable `ansi-color-compilation-filter` in Urgrep buffers
+
+---
+
 ## v0.5.1 (2024-08-22)
 
 ### Bug fixes
