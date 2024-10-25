@@ -711,6 +711,7 @@ COLOR: non-nil (the default) if the output should use color."
 
 ;; urgrep-mode
 
+(defvar ansi-color-for-compilation-mode)
 (defvar outline-search-function)
 (defvar outline-level)
 (defvar outline-minor-mode-use-buttons)
