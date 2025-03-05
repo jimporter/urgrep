@@ -195,7 +195,7 @@ for MS shells."
 (defun urgrep--safe-file-name (file)
   "Get a safe form of FILE ready to pass to an external process.
 This expands tildes and removes any remote host identifiers or quoting."
-  (when-let ((remote (file-remote-p file)))
+  (when-let* ((remote (file-remote-p file)))
     (unless (equal remote (file-remote-p default-directory))
       (error "Remote file doesn't match host for `default-directory'"))
     (setq file (file-local-name file)))
@@ -538,8 +538,8 @@ If SUFFIX is non-nil, append it to PROP to generate the property name."
   "Get the property PROP from TOOL and use it as a `pcase' macro for VALUE.
 If SUFFIX is non-nil, append it to PROP to generate the property
 name."
-  (when-let ((cases (urgrep--get-prop prop tool suffix))
-             (block (append `(,#'pcase ',value) cases)))
+  (when-let* ((cases (urgrep--get-prop prop tool suffix))
+              (block (append `(,#'pcase ',value) cases)))
     (eval block t)))
 
 (iter-defun urgrep--iter-tools ()
@@ -576,8 +576,8 @@ This caches the default tool per-host in `urgrep--host-defaults'."
              ;; tools for different directories, so we can't cache anything.
              (setq use-cache (and use-cache (not tool-vc-backend)))
              ;; Cache the VC backend name if we need it.
-             (when-let (((and tool-vc-backend (not vc-backend-name)))
-                        (proj (project-current)))
+             (when-let* (((and tool-vc-backend (not vc-backend-name)))
+                         (proj (project-current)))
                (setq vc-backend-name (vc-responsible-backend
                                       (project-root proj))))
              ;; If we find the executable (and it's for the right VC backend, if
@@ -609,11 +609,11 @@ it up in `urgrep-tools'.  Otherwise, return TOOL as-is."
 (defun urgrep--guess-tool (command)
   "Guess the urgrep tool from the specified COMMAND."
   (catch 'found
-    (when-let ((args (urgrep--split-string-shell-command
-                      ;; First, split by semicolon, since
-                      ;; `split-string-shell-command' only returns the *last*
-                      ;; command.
-                      (car (split-string command ";"))))
+    (when-let* ((args (urgrep--split-string-shell-command
+                       ;; First, split by semicolon, since
+                       ;; `split-string-shell-command' only returns the *last*
+                       ;; command.
+                       (car (split-string command ";"))))
                (command-name (file-name-nondirectory (car args))))
       (dolist (tool urgrep-tools)
         (when (string= command-name
@@ -987,7 +987,7 @@ For more details on the change, see
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
-    (if-let ((match (text-property-search-backward 'urgrep-file-name)))
+    (if-let* ((match (text-property-search-backward 'urgrep-file-name)))
         (buffer-substring-no-properties (prop-match-beginning match)
                                         (prop-match-end match))
       ;; Emacs 27 and lower will break if we return nil from this function.
@@ -1019,7 +1019,8 @@ See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
   "Set up compilation variables for urgrep and run `urgrep-setup-hook'."
-  (when-let ((tool-setup (urgrep--get-prop 'process-setup urgrep-current-tool)))
+  (when-let* ((tool-setup (urgrep--get-prop 'process-setup
+                                            urgrep-current-tool)))
     (funcall tool-setup))
   (setq-local urgrep-num-matches-found 0
               compilation-exit-message-function #'urgrep-exit-message
@@ -1162,7 +1163,7 @@ If non-nil, EVENT should be a mouse event."
       (while start
         (setq end (next-single-property-change
                    start 'abbreviated-command command))
-        (when-let ((abbrev (get-text-property start 'abbreviated-command
+        (when-let* ((abbrev (get-text-property start 'abbreviated-command
                                               command)))
           (add-text-properties
            start end
@@ -1218,7 +1219,7 @@ If the region is active, return that.  Otherwise, return the symbol at
 point."
   (if (use-region-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
-    (when-let ((symbol (symbol-at-point)))
+    (when-let* ((symbol (symbol-at-point)))
       (substring-no-properties (symbol-name symbol)))))
 
 (defun urgrep--search-prompt (default)
