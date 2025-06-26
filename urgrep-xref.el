@@ -52,10 +52,10 @@
                                         :color nil :root nil)))))
     (funcall oldfun regexp (urgrep--remove-directories files))))
 
-(advice-add #'xref-matches-in-files :around #'urgrep--xref-matches-in-files)
+(advice-add 'xref-matches-in-files :around #'urgrep--xref-matches-in-files)
 
 (defun urgrep-xref-unload-function ()
-  (advice-remove #'xref-matches-in-files #'urgrep--xref-matches-in-files))
+  (advice-remove 'xref-matches-in-files #'urgrep--xref-matches-in-files))
 
 (provide 'urgrep-xref)
 ;;; urgrep-xref.el ends here
