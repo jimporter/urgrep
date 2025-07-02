@@ -1192,15 +1192,12 @@ rerunning the search."
       ;; consult this let-binding from another buffer.
       (with-temp-buffer
         ;; Let-bind `default-directory' here so that the external command knows
-        ;; where to search...
+        ;; where to search.  `compilation-start' will then set this for us in
+        ;; the compilation buffer.
         (let ((urgrep-current-tool tool)
               (default-directory directory))
           (compilation-start (urgrep--hide-abbreviations command)
                              #'urgrep-mode)))
-    ;; ... and then set `default-directory' here to be sure it's up to date.
-    ;; This can get out of sync if re-running urgrep from a urgrep buffer, but
-    ;; with a different search directory set.
-    (setq default-directory directory)
     (setq urgrep-current-query query
           urgrep-current-tool tool)
     (current-buffer)))

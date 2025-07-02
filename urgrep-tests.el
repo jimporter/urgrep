@@ -58,7 +58,7 @@ joined to compare against COMMAND."
   (should (string= command (mapconcat #'urgrep--maybe-shell-quote-argument
                                       expected-arguments " "))))
 
-(defun urgrep-tests/check-match-at-point ()
+(defun urgrep-tests/check-match-at-point (&optional filename)
   "In a Urgrep buffer, check that the match at point is consistent."
   (let* ((line (string-to-number (current-word)))
          (loc (compilation--message->loc
@@ -68,7 +68,7 @@ joined to compare against COMMAND."
          (match-start (text-property-any text-start text-end 'font-lock-face
                                          'urgrep-match)))
     (should (equal (caar (compilation--loc->file-struct loc))
-                   "urgrep-tests.el"))
+                   (or filename "urgrep-tests.el")))
     (should (equal (compilation--loc->line loc) line))
     (should (equal (compilation--loc->col loc)
                    (- match-start text-start)))))
@@ -805,6 +805,27 @@ joined to compare against COMMAND."
   (goto-char (point-min))
   (re-search-forward "urgrep-tests.el:")
   (urgrep-tests/check-match-at-point))
+
+(ert-deftest urgrep-tests/urgrep/repeat-from-urgrep ()
+  (switch-to-buffer (urgrep "urgrep"))
+  (while (get-buffer-process (current-buffer))
+    (accept-process-output))
+  (let ((base-name (file-name-nondirectory
+                    (directory-file-name default-directory)))
+        (parent-dir (file-name-parent-directory default-directory)))
+    (urgrep "urgrep-tests/" :default-directory parent-dir)
+    (while (get-buffer-process (current-buffer))
+      (accept-process-output))
+    (should (and (equal urgrep-current-tool (urgrep-get-tool))
+                 (local-variable-p 'urgrep-current-tool)))
+    (should (and (equal urgrep-current-query '("urgrep-tests/"))
+                 (local-variable-p 'urgrep-current-query)))
+    (should (equal default-directory parent-dir))
+    (goto-char (point-min))
+    (re-search-forward (concat base-name "/urgrep-tests.el"))
+    (beginning-of-line 2)
+    (urgrep-tests/check-match-at-point
+     (concat base-name "/urgrep-tests.el"))))
 
 (ert-deftest urgrep-tests/urgrep-run-command ()
   (switch-to-buffer (urgrep-run-command (urgrep-command "urgrep")))
