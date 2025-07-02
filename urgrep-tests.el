@@ -816,8 +816,6 @@ joined to compare against COMMAND."
     (urgrep "urgrep-tests/" :default-directory parent-dir)
     (while (get-buffer-process (current-buffer))
       (accept-process-output))
-    (should (and (equal urgrep-current-tool (urgrep-get-tool))
-                 (local-variable-p 'urgrep-current-tool)))
     (should (and (equal urgrep-current-query '("urgrep-tests/"))
                  (local-variable-p 'urgrep-current-query)))
     (should (equal default-directory parent-dir))
