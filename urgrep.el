@@ -1456,11 +1456,17 @@ searched."
   (interactive
    (let ((default-directory (urgrep--read-directory current-prefix-arg)))
      `(,@(urgrep--read-query nil) :default-directory ,default-directory)))
-  (let* ((tool (urgrep-get-tool (plist-get rest :tool)))
-         (directory (prog1 (plist-get rest :default-directory)
+  (let* ((directory (prog1 (plist-get rest :default-directory)
                       (cl-remf rest :default-directory)))
          (full-query (cons query rest))
-         (command (apply #'urgrep-command full-query)))
+         tool command)
+    ;; Be careful not to let-bind `default-directory' outside this spot, since
+    ;; `urgrep--start' needs to be able to set it buffer-locally in the Urgrep
+    ;; buffer.  In Emacs 31, we could use `set-buffer-local-toplevel-value' over
+    ;; there (or in `compilation-start'), and then this code could be simpler.
+    (let ((default-directory (or directory default-directory)))
+      (setq tool (urgrep-get-tool (plist-get rest :tool))
+            command (apply #'urgrep-command full-query)))
     (urgrep--start command full-query tool directory)))
 
 ;;;###autoload
@@ -1483,8 +1489,11 @@ to edit the command before running it.
           (tool (condition-case nil (urgrep--guess-tool command)
                   (error (plist-get (cdr query) :tool)))))
      (list command :default-directory default-directory :tool tool)))
-  (let ((tool (if tool (urgrep-get-tool tool)
-                (urgrep--guess-tool command))))
+  ;; As above in `urgrep', careful not to let-bind `default-directory' outside
+  ;; this spot.
+  (let ((tool (let ((default-directory (or directory default-directory)))
+                (if tool (urgrep-get-tool tool)
+                  (urgrep--guess-tool command)))))
     (urgrep--start command command tool directory)))
 
 (cl-eval-when (compile)
