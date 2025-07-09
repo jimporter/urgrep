@@ -1,5 +1,13 @@
 # Urgrep News
 
+## v0.5.3 (in progress)
+
+### Bug fixes
+- Improve fontification for file/line number to avoid problems with matches
+  containing colons
+
+---
+
 ## v0.5.2 (2025-06-06)
 
 ### Bug fixes

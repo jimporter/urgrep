@@ -987,34 +987,33 @@ For more details on the change, see
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
-    (if-let* ((match (text-property-search-backward 'urgrep-file-name)))
+    (goto-char (match-beginning 0))
+    (if-let* (;; Make sure the line doesn't start with a filename...
+              ((not (get-text-property (point) 'urgrep-file-name)))
+              ;; ... and that we've seen a file name previously.
+              (match (text-property-search-backward 'urgrep-file-name)))
         (buffer-substring-no-properties (prop-match-beginning match)
                                         (prop-match-end match))
       ;; Emacs 27 and lower will break if we return nil from this function.
       (when (< emacs-major-version 28) "*unknown*"))))
 
 (defconst urgrep-regexp-alist
-  ;; XXX: Try to rely on ANSI escapes as with the match highlight?
-  `(;; Ungrouped matches
-    (,(rx bol
-          (or ;; Parse using a null terminator after the filename when possible.
-              (seq (group-n 1 (+ (not (any "\0" "\n"))))
-                   (group-n 3 "\0") (group-n 2 (+ digit)))
-              ;; Fallback if we can't use null terminators after the filename.
-              ;; Require line numbers to start with a nonzero digit to allow
-              ;; ":0" in filenames.
-              (seq (group-n 1 (+? nonl) (not (any "\n" "/")))
-                   ":" (group-n 2 urgrep-regular-number)))
-          ":")
-     1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)
-     nil nil
-     (3 '(face nil display ":")))
-
-    ;; Grouped matches
+  `(;; Grouped matches
     (,(rx bol (group urgrep-regular-number) ":")
      ,#'urgrep--grouped-filename 1
-     (,#'urgrep--column-begin . ,#'urgrep--column-end)))
-  "Regexp used to match results.
+     (,#'urgrep--column-begin . ,#'urgrep--column-end))
+    ;; Ungrouped matches with null terminator
+    (,(rx bol (group (+ (not (any "\0" "\n" "\033"))))
+          (group "\0") (group (+ digit)) ":")
+     1 3 (,#'urgrep--column-begin . ,#'urgrep--column-end)
+     nil nil (2 '(face nil display ":")))
+    ;; Ungrouped matches without null terminator
+    (,(rx bol (group (*? (not (any "\n" "\033"))) (not (any "/" "\n" "\033")))
+          ;; Require line numbers to start with a nonzero digit to allow ":0" in
+          ;; filenames.
+          ":" (group urgrep-regular-number) ":")
+     1 2 (,#'urgrep--column-begin . ,#'urgrep--column-end)))
+  "Regexps used to match results.
 See `compilation-error-regexp-alist' for format details.")
 
 (defun urgrep-process-setup ()
