@@ -177,6 +177,10 @@ and escapes null characters."
         (concat "^" (funcall to-re prefix) esc "("
                 (mapconcat to-re suffixes (concat esc "|")) esc ")$")))))
 
+;; FIXME: This function doesn't work right when let-binding `default-directory'
+;; to a directory on a different host.  The shell quoting logic is determined by
+;; buffer-local values (ultimately `shell-file-name' as referenced in
+;; `w32-shell-name'.  This probably needs a core Emacs fix...
 (defun urgrep--maybe-shell-quote-argument (argument)
   "Quote ARGUMENT if needed for passing to an inferior shell.
 This works as `shell-quote-argument', but avoids quoting unnecessarily
