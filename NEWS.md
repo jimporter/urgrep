@@ -1,6 +1,9 @@
 # Urgrep News
 
-## v0.5.3 (in progress)
+## v0.6.0 (in progress)
+
+### Breaking changes
+- Require Emacs 28+
 
 ### Bug fixes
 - Improve fontification for file/line number to avoid problems with matches

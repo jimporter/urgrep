@@ -4,9 +4,9 @@
 
 ;; Author: Jim Porter
 ;; URL: https://github.com/jimporter/urgrep
-;; Version: 0.5.3-git
+;; Version: 0.6.0-git
 ;; Keywords: grep, search
-;; Package-Requires: ((emacs "27.1") (compat "29.1.0.1") (project "0.3.0"))
+;; Package-Requires: ((emacs "28.1") (compat "29.1.0.1") (project "0.3.0"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -956,16 +956,6 @@ file name and line number."
      (0 'urgrep-context t)
      (2 `(face nil display ,(match-string 1)) nil t))))
 
-(defvar urgrep--column-end-adjustment
-  (if (< emacs-major-version 28) 0 1)
-  "Handle core Emacs changes to the column range for `compile-mode' matches.
-In Emacs 28+, the column range for matches is closed, but in
-previous versions, it's half-open.  Use this to adjust the value
-as needed in `urgrep--column-end'.
-
-For more details on the change, see
-<https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49624>.")
-
 (defun urgrep--column-begin ()
   "Look forwards for the match highlight to compute the beginning column."
   (let* ((beg (match-end 0))
@@ -982,19 +972,22 @@ For more details on the change, see
          (mend (and mbeg (next-single-property-change mbeg 'font-lock-face nil
                                                       end))))
     (when mend
-      (- mend beg urgrep--column-end-adjustment))))
+      ;; In Emacs 28+, the column range for matches in compile.el is closed, but
+      ;; our calculation is half-open.  So subtract 1 from the result to make it
+      ;; closed.  For more details on the change, see
+      ;; <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=49624>.
+      (- mend beg 1))))
 
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
-    (if-let* (;; Make sure the line doesn't start with a filename...
-              ((not (get-text-property (match-beginning 0) 'urgrep-file-name)))
-              ;; ... and that we've seen a file name previously.
-              (match (text-property-search-backward 'urgrep-file-name)))
-        (buffer-substring-no-properties (prop-match-beginning match)
-                                        (prop-match-end match))
-      ;; Emacs 27 and lower will break if we return nil from this function.
-      (when (< emacs-major-version 28) "*unknown*"))))
+    (when-let* (;; Make sure the line doesn't start with a filename...
+                ((not (get-text-property (match-beginning 0)
+                                         'urgrep-file-name)))
+                ;; ... and that we've seen a file name previously.
+                (match (text-property-search-backward 'urgrep-file-name)))
+      (buffer-substring-no-properties (prop-match-beginning match)
+                                      (prop-match-end match)))))
 
 (defconst urgrep-regexp-alist
   `(;; Grouped matches
