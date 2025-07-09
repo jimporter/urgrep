@@ -987,9 +987,8 @@ For more details on the change, see
 (defun urgrep--grouped-filename ()
   "Look backwards for the filename when a match is found in grouped output."
   (save-excursion
-    (goto-char (match-beginning 0))
     (if-let* (;; Make sure the line doesn't start with a filename...
-              ((not (get-text-property (point) 'urgrep-file-name)))
+              ((not (get-text-property (match-beginning 0) 'urgrep-file-name)))
               ;; ... and that we've seen a file name previously.
               (match (text-property-search-backward 'urgrep-file-name)))
         (buffer-substring-no-properties (prop-match-beginning match)
