@@ -25,6 +25,8 @@ jobs:
       - name: Install dependencies
         run: |
           make install-deps
+          ls -alF
+          ls -alF ..
       - name: Run ${{ matrix.action }}
         run: |
           make ${{ matrix.action }}

@@ -807,12 +807,19 @@ joined to compare against COMMAND."
   (urgrep-tests/check-match-at-point))
 
 (ert-deftest urgrep-tests/urgrep/repeat-from-urgrep ()
-  (switch-to-buffer (urgrep "urgrep"))
-  (while (get-buffer-process (current-buffer))
-    (accept-process-output))
   (let ((base-name (file-name-nondirectory
                     (directory-file-name default-directory)))
         (parent-dir (file-name-parent-directory default-directory)))
+    (message "TEST1: %S" default-directory)
+    ;; Run Urgrep once in the current directory.
+    (switch-to-buffer (urgrep "urgrep"))
+    (message "TEST2: %S" default-directory)
+    (while (get-buffer-process (current-buffer))
+      (accept-process-output))
+    (message "TEST3: %S" default-directory)
+    (message "TEST4: %S %S" default-directory parent-dir)
+    ;; Run Urgrep again, starting in the *urgrep* buffer, but change the
+    ;; directory to search in.
     (urgrep "urgrep-tests/" :default-directory parent-dir)
     (while (get-buffer-process (current-buffer))
       (accept-process-output))

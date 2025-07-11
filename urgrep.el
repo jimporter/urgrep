@@ -1178,9 +1178,11 @@ be the same value as COMMAND).  TOOL is the tool that was used to
 generate the command.  This sets `urgrep-current-query' and
 `urgrep-current-tool' buffer-locally so that they can be used when
 rerunning the search."
+  (message "urgrep--start directory: %S %S" default-directory directory)
   (setq directory (if directory
                       (file-name-as-directory (expand-file-name directory))
                     default-directory))
+  (message "  %S" directory)
   (with-current-buffer
       ;; Run this in a temporary buffer to ensure that we let-bind the default
       ;; binding for `urgrep-current-tool'.  `urgrep-process-setup' needs to
@@ -1464,6 +1466,7 @@ searched."
     ;; `urgrep--start' needs to be able to set it buffer-locally in the Urgrep
     ;; buffer.  In Emacs 31, we could use `set-buffer-local-toplevel-value' over
     ;; there (or in `compilation-start'), and then this code could be simpler.
+    (message "urgrep directory: %S %S" default-directory directory)
     (let ((default-directory (or directory default-directory)))
       (setq tool (urgrep-get-tool (plist-get rest :tool))
             command (apply #'urgrep-command full-query)))
