@@ -851,6 +851,6 @@ joined to compare against COMMAND."
 (ert-deftest urgrep-tests/eshell/inline ()
   (skip-unless (executable-find "cat"))
   (with-temp-eshell
-   (eshell-match-command-output "urgrep universal | cat" "^README.md\n")))
+   (eshell-match-command-output "urgrep universal | cat" "^README.org\n")))
 
 ;;; urgrep-tests.el ends here
