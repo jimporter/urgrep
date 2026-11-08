@@ -1,0 +1,152 @@
+#+MACRO: kbd @@html:<kbd>$1</kbd>@@
+
+* Urgrep - Universal Recursive Grep
+
+[[https://elpa.gnu.org/packages/urgrep.html][https://elpa.gnu.org/packages/urgrep.svg]]
+
+*Urgrep* is an Emacs package to provide a universal frontend for *any* grep-like
+tool, as an alternative to the built-in =M-x rgrep= (and other similar
+packages).  Currently, [[https://github.com/Genivia/ugrep][=ugrep=]], [[https://github.com/BurntSushi/ripgrep][=ripgrep=]], [[https://github.com/ggreer/the_silver_searcher][=ag=]], [[https://beyondgrep.com/][=ack=]], [[https://git-scm.com/docs/git-grep][=git grep=]], and
+[[https://www.gnu.org/software/grep/][=grep=]]/[[https://www.gnu.org/software/findutils/][=find=]] are supported.
+
+** Why Urgrep?
+
+*** One package, many tools
+
+No matter which tool you prefer, you can use it with Urgrep.  If a new tool
+comes along, you won't need to find a new Emacs package for it.
+
+*** Rich minibuffer interface
+
+Easily manipulate per-search options with Isearch-like key bindings within the
+Urgrep minibuffer prompt.
+
+*** Seamless support for Tramp
+
+Each host can use a different set of tools depending on what the system has
+installed without any special configuration.
+
+** Using Urgrep
+
+The primary entry point to Urgrep is the interactive function =urgrep=.  This
+prompts you for a query to search for in, by default, the root directory of the
+current project (or the =default-directory= if there is no project).  By
+prefixing with {{{kbd(C-u)}}}, this will always start the search within the
+=default-directory=.  With {{{kbd(C-u)}}} {{{kbd(C-u)}}}, Urgrep will first
+prompt you for the search directory.  Within the search prompt, there are
+several Isearch-like key bindings to let you modify the search's behavior:
+
+| Key binding                 | Action                                        |
+|-----------------------------+-----------------------------------------------|
+| {{{kbd(M-s)}}} {{{kbd(<)}}} | Describe key bindings                         |
+| {{{kbd(M-s)}}} {{{kbd(r)}}} | Toggle regexp search                          |
+| {{{kbd(M-s)}}} {{{kbd(c)}}} | Toggle case folding                           |
+| {{{kbd(M-s)}}} {{{kbd(H)}}} | Toggle searching in hidden files              |
+| {{{kbd(M-s)}}} {{{kbd(f)}}} | Set wildcards to filter files[fn:1]           |
+| {{{kbd(M-s)}}} {{{kbd(C)}}} | Set number of lines of context[fn:2]          |
+| {{{kbd(M-s)}}} {{{kbd(B)}}} | Set number of lines of leading context[fn:2]  |
+| {{{kbd(M-s)}}} {{{kbd(A)}}} | Set number of lines of trailing context[fn:2] |
+| {{{kbd(M-s)}}} {{{kbd(t)}}} | Set the search tool                           |
+
+[fn:1] Prompts with a recursive minibuffer
+
+[fn:2] With a numeric prefix argument, set immediately; otherwise, use a
+recursive minibuffer
+
+In addition to the above, you can call =urgrep-run-command=, which works like
+=urgrep= but allows you to manually edit the command before executing it.
+
+*** Modifying your search
+
+After performing a search, you can adjust an existing query with {{{kbd(C-u)}}}
+{{{kbd(g)}}}, reopening the original search prompt.  You can also adjust some of
+the search options, such as case folding, immediately:
+
+| Key binding  | Action                                 |
+|--------------+----------------------------------------|
+| {{{kbd(c)}}} | Toggle case folding                    |
+| {{{kbd(H)}}} | Toggle searching in hidden files       |
+| {{{kbd(C)}}} | Expand lines of context[fn:3]          |
+| {{{kbd(B)}}} | Expand lines of leading context[fn:3]  |
+| {{{kbd(A)}}} | Expand lines of trailing context[fn:3] |
+
+[fn:3] Expand by one line by default, or by *N* lines with a prefix argument
+
+*** Configuring the tool to use
+
+By default, Urgrep tries all search tools it's aware of to find the best option.
+To improve performance, you can restrict the set of tools to search for by
+setting =urgrep-preferred-tools=:
+
+#+begin_src elisp
+(setq urgrep-preferred-tools '(git-grep grep))
+#+end_src
+
+If a tool is installed in an unusual place on your system, you can specify this
+by providing a cons cell as an element in =urgrep-preferred-tools=:
+
+#+begin_src elisp
+(setq urgrep-preferred-tools '((ag . "/home/coco/bin/ag")))
+#+end_src
+
+This also works with connection-local variables:
+
+#+begin_src elisp
+(connection-local-set-profile-variables 'urgrep-ripgrep
+ '((urgrep-preferred-tools . (ripgrep))))
+
+(connection-local-set-profiles
+ '(:application tramp :machine "imagewriter") 'urgrep-ripgrep)
+#+end_src
+
+*** Using with wgrep
+
+[[https://github.com/mhayashi1120/Emacs-wgrep][wgrep]] provides a convenient way to edit results in grep-like buffers.  Urgrep
+can hook into wgrep to support this as well.  To enable this, just load
+=urgrep-wgrep.el=.
+
+*** Using with Xref
+
+[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Xref.html][Xref]] lets you search through your projects to find strings, identifiers etc.
+You can make Xref use Urgrep to generate its search command by loading
+=urgrep-xref.el=.
+
+*** Using with =outline-minor-mode=
+
+Inside of Urgrep buffers, you can enable =outline-minor-mode=.  This will let
+you toggle the visibility of each file's results.
+
+*** Using with Eshell
+
+In Eshell buffers, you can call =urgrep= much like you'd call any command-line
+recursive grep command.  The following options are supported:
+
+| Option                      | Action                                      |
+|-----------------------------+---------------------------------------------|
+| =-G=, =--basic-regexp=      | Pattern is a basic regexp                   |
+| =-E=, =--extended-regexp=   | Pattern is an extended regexp               |
+| =-P=, =--perl-regexp=       | Pattern is a Perl-compatible regexp         |
+| =-R=, =--default-regexp=    | Pattern is a regexp with the default syntax |
+| =-F=, =--fixed-strings=     | Pattern is a string                         |
+| =-s=, =--case-sensitive=    | Search case-sensitively                     |
+| =-i=, =--ignore-case=       | Search case-insensitively                   |
+| =-S=, =--smart-case=        | Ignore case if pattern is all lower-case    |
+| =--group= / =--no-group=    | Enable/disable grouping results by file     |
+| =--hidden= / =--no-hidden=  | Enable/disable searching hidden files       |
+| =-Cn=, =--context=N=        | Show *N* lines of context                   |
+| =-Bn=, =--before-context=N= | Show *N* lines of leading context           |
+| =-An=, =--after-context=N=  | Show *N* lines of trailing context          |
+
+** Programmatic interface
+
+In addition to interactive use, Urgrep is designed to allow for programmatic
+use, returning a command to execute with the specified query and options:
+=urgrep-command=.  This takes a =query= as well as several optional keyword
+arguments.  For more information, consult the docstring for =urgrep-command=.
+
+** Contributing
+
+This project [[https://www.gnu.org/prep/maintain/html_node/Copyright-Papers.html][assigns copyright]] to the Free Software Foundation, so if you'd like
+to contribute code, please make sure you've filled out the assignment form and
+that it's up to date.  In any case, before submitting patches, it's probably
+best to [[https://lists.sr.ht/~jimporter/urgrep-devel][file an issue]] first so that we can discuss the best way to do things.

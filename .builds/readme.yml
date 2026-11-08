@@ -1,0 +1,19 @@
+submitter:
+  git.sr.ht:
+    allow-refs:
+      - refs/heads/master
+
+image: archlinux
+oauth: git.sr.ht/REPOSITORIES:RW git.sr.ht/PROFILE:RO
+packages:
+  - hut
+  - emacs-nox
+sources:
+  - https://git.sr.ht/~jimporter/urgrep
+environment:
+  DOC_BASE_URL: https://git.sr.ht/~jimporter/urgrep/blob/master/
+tasks:
+  - update-readme: |
+      cd urgrep
+      make README.html
+      hut git update --readme README.html

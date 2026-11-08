@@ -45,6 +45,20 @@ EMACS_DEPS := $(EMACS) \
   --eval '(setq package-user-dir (getenv "DEPS_DIR"))' \
   --eval '(package-activate-all)'
 
+define DOC_EXPORT_SCRIPT
+(progn
+  (setq org-element-cache-persistent nil
+        org-export-with-toc nil
+        org-export-with-section-numbers nil
+        org-html-link-use-abs-url t
+        org-html-link-home (getenv "DOC_BASE_URL"))
+  (setq gc-cons-threshold (* 50 1000 1000))
+  (require (quote ox-html))
+  (org-html-export-to-html nil nil nil t))
+endef
+export DOC_BASE_URL
+export DOC_EXPORT_SCRIPT
+
 .PHONY: all
 all: compile autoloads
 
@@ -74,6 +88,11 @@ $(AUTOLOADS): $(SRCS)
 	@$(EMACS_DEPS) -Q --batch \
 	  $(if $(STRICT),--eval '(setq byte-compile-error-on-warn t)') \
 	  -L . --funcall batch-byte-compile $<
+
+README.html: README.org
+	@echo EXPORT $@
+	@$(EMACS) -Q --batch \
+	  --find-file $< --eval "$$DOC_EXPORT_SCRIPT"
 
 .PHONY: run
 run: all

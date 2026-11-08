@@ -1,4 +1,5 @@
 *.elc
 /.deps
+/README.html
 /urgrep-autoloads.el
 /urgrep-pkg.el
